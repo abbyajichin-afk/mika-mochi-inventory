@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mika Mochi — Inventory & Costing</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --pink: #E8638C;
+  --pink-light: #F5A8C0;
+  --pink-pale: #FDF0F4;
+  --pink-dark: #C44872;
+  --cream: #FFF8FA;
+  --text: #2D1B22;
+  --text-muted: #9B7585;
+  --border: #F0D4DC;
+  --green: #27AE60;
+  --orange: #E67E22;
+  --red: #E74C3C;
+  --blue: #2980B9;
+  --white: #ffffff;
+  --shadow: 0 2px 12px rgba(232,99,140,0.10);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--cream); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+/* LOGIN */
+#loginScreen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; background: linear-gradient(160deg, #FDF0F4 0%, #fff 100%); }
+.login-logo { font-size: 2.2rem; font-weight: 800; color: var(--pink); letter-spacing: -1px; margin-bottom: 4px; }
+.login-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 32px; }
+.login-card { background: white; border-radius: var(--radius); padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+.login-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
+.user-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.user-btn { background: var(--pink-pale); border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; text-align: left; cursor: pointer; transition: all 0.2s; }
+.user-btn:hover, .user-btn.selected { border-color: var(--pink); background: white; }
+.user-btn .uname { font-weight: 700; font-size: 0.95rem; }
+.user-btn .urole { font-size: 0.75rem; color: var(--text-muted); }
+.pin-input { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); font-size: 1.2rem; letter-spacing: 8px; text-align: center; margin-bottom: 14px; outline: none; transition: border 0.2s; }
+.pin-input:focus { border-color: var(--pink); }
+.btn-primary { width: 100%; background: var(--pink); color: white; border: none; border-radius: var(--radius-sm); padding: 13px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+.login-error { color: var(--red); font-size: 0.82rem; text-align: center; margin-top: 8px; }
+
+/* APP */
+#appShell { display: none; flex-direction: column; min-height: 100vh; }
+.top-bar { background: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+.top-bar-logo { font-size: 1.1rem; font-weight: 800; color: var(--pink); }
+.top-bar-user { display: flex; align-items: center; gap: 8px; }
+.top-bar-user span { font-size: 0.8rem; color: var(--text-muted); }
+.logout-btn { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 0.78rem; color: var(--text-muted); cursor: pointer; }
+
+/* NAV */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); display: flex; z-index: 100; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 4px 6px; cursor: pointer; color: var(--text-muted); font-size: 0.62rem; gap: 3px; border: none; background: none; transition: color 0.2s; }
+.nav-item.active { color: var(--pink); }
+.nav-item svg { width: 21px; height: 21px; }
+
+/* MAIN */
+.main-content { flex: 1; padding: 16px; padding-bottom: 88px; max-width: 600px; margin: 0 auto; width: 100%; }
+
+/* PAGE HEADER */
+.page-header { margin-bottom: 18px; }
+.page-header h1 { font-size: 1.4rem; font-weight: 800; }
+.page-header p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+
+/* CARDS */
+.card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.card-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px; }
+
+/* STAT GRID */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 14px; box-shadow: var(--shadow); }
+.stat-val { font-size: 1.7rem; font-weight: 800; color: var(--pink); }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ALERT */
+.alert-banner { background: #FDECEA; border: 1px solid #F5C6CB; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: flex-start; gap: 8px; }
+.alert-banner-text { font-size: 0.82rem; }
+.alert-banner-text strong { display: block; font-weight: 700; margin-bottom: 3px; }
+
+/* TABS */
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { padding: 7px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--text-muted); white-space: nowrap; transition: all 0.2s; }
+.tab.active { background: var(--pink); color: white; border-color: var(--pink); }
+
+/* INVENTORY ITEM */
+.inv-item { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); cursor: pointer; gap: 10px; }
+.inv-item:last-child { border-bottom: none; }
+.inv-item:active { background: var(--pink-pale); margin: 0 -16px; padding: 11px 16px; border-radius: 4px; }
+.inv-item-info { flex: 1; min-width: 0; }
+.inv-item-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-item-meta { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+.price-indicator { font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+.price-up { background: #FDECEA; color: var(--red); }
+.price-down { background: #EAF7EE; color: var(--green); }
+.price-same { background: #FFF9E6; color: var(--orange); }
+.inv-item-right { text-align: right; flex-shrink: 0; }
+.inv-stock { font-size: 1rem; font-weight: 800; }
+.inv-stock.low { color: var(--red); }
+.inv-stock.ok { color: var(--green); }
+.inv-stock.zero { color: var(--text-muted); }
+.inv-unit { font-size: 0.7rem; color: var(--text-muted); }
+
+/* BUTTONS */
+.btn { padding: 10px 18px; border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-sm { padding: 6px 12px; font-size: 0.76rem; }
+.btn-xs { padding: 4px 10px; font-size: 0.72rem; }
+.btn-pink { background: var(--pink); color: white; }
+.btn-pink:active { background: var(--pink-dark); }
+.btn-outline { background: white; border: 1.5px solid var(--border); color: var(--text); }
+.btn-outline:active { border-color: var(--pink); color: var(--pink); }
+.btn-green { background: var(--green); color: white; }
+.btn-red { background: var(--red); color: white; }
+.btn-row { display: flex; gap: 10px; margin-top: 14px; }
+.btn-row .btn { flex: 1; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: white; border-radius: var(--radius) var(--radius) 0 0; padding: 22px 18px 36px; width: 100%; max-width: 600px; max-height: 92vh; overflow-y: auto; }
+.modal-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+.modal-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--text-muted); padding: 4px; }
+
+/* FORM */
+.form-group { margin-bottom: 13px; }
+.form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
+.form-input, .form-select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; outline: none; transition: border 0.2s; background: white; color: var(--text); }
+.form-input:focus, .form-select:focus { border-color: var(--pink); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* PRODUCTION LOG */
+.log-item { background: var(--pink-pale); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; border: 1px solid var(--border); }
+.log-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.log-title { font-weight: 700; font-size: 0.9rem; }
+.log-date { font-size: 0.73rem; color: var(--text-muted); }
+.log-detail { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+/* COSTING */
+.cost-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+.cost-row:last-child { border-bottom: none; }
+.cost-row.total { font-weight: 800; font-size: 1rem; color: var(--pink); }
+.cost-highlight { background: linear-gradient(135deg, var(--pink), var(--pink-dark)); color: white; border-radius: var(--radius); padding: 18px; text-align: center; margin-top: 14px; }
+.cost-highlight .big { font-size: 2.2rem; font-weight: 800; }
+.cost-highlight .lbl { font-size: 0.78rem; opacity: 0.85; margin-top: 3px; }
+
+/* PRICE HISTORY */
+.ph-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.ph-item:last-child { border-bottom: none; }
+.ph-date { font-size: 0.78rem; color: var(--text-muted); }
+.ph-price { font-weight: 700; font-size: 0.9rem; }
+.ph-change { font-size: 0.75rem; font-weight: 700; }
+
+/* LINE ITEMS */
+.line-items-container { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 6px; }
+.line-item-row { display: grid; grid-template-columns: 1fr 70px auto; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.line-item-row:last-child { border-bottom: none; }
+.line-item-row select, .line-item-row input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; width: 100%; }
+.remove-line { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1rem; padding: 2px 6px; flex-shrink: 0; }
+.add-line-btn { background: none; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 8px; width: 100%; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 0.8rem; }
+.add-line-btn:active { border-color: var(--pink); color: var(--pink); }
+
+/* EMPTY */
+.empty-state { text-align: center; padding: 36px 20px; color: var(--text-muted); }
+.empty-state .icon { font-size: 2.4rem; margin-bottom: 10px; }
+.empty-state p { font-size: 0.85rem; }
+
+/* FAB */
+.fab { position: fixed; bottom: 78px; right: 18px; width: 50px; height: 50px; background: var(--pink); border-radius: 50%; border: none; color: white; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 16px rgba(232,99,140,0.4); display: flex; align-items: center; justify-content: center; z-index: 90; }
+
+/* TOAST */
+.toast { position: fixed; top: 68px; left: 50%; transform: translateX(-50%); background: #2D1B22; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.83rem; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+
+/* SETUP */
+.setup-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.setup-item:last-child { border-bottom: none; }
+.setup-item-name { font-weight: 600; font-size: 0.88rem; }
+.setup-item-meta { font-size: 0.72rem; color: var(--text-muted); }
+
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.section-header h3 { font-size: 0.95rem; font-weight: 700; }
+.loading { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem; }
+
+/* SEARCH */
+.search-bar { display: flex; align-items: center; background: white; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 12px; gap: 8px; }
+.search-bar input { border: none; outline: none; flex: 1; font-size: 0.88rem; background: none; color: var(--text); }
+.search-bar span { color: var(--text-muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-logo">🍡 Mika Mochi</div>
+  <div class="login-sub">Inventory & Costing System</div>
+  <div class="login-card">
+    <h2>Log masuk</h2>
+    <div class="user-list" id="userList"><div class="loading">Loading...</div></div>
+    <div id="pinSection" style="display:none">
+      <input type="password" class="pin-input" id="pinInput" placeholder="••••" maxlength="6" inputmode="numeric">
+      <button class="btn-primary" onclick="doLogin()">Masuk</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell">
+  <div class="top-bar">
+    <div class="top-bar-logo">🍡 Mika Mochi</div>
+    <div class="top-bar-user">
+      <span id="topBarUser">—</span>
+      <button class="logout-btn" onclick="doLogout()">Keluar</button>
+    </div>
+  </div>
+  <div class="main-content" id="mainContent"></div>
+  <nav class="bottom-nav">
+    <button class="nav-item" onclick="navigate('dashboard')" id="nav-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-item" onclick="navigate('inventory')" id="nav-inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Inventori
+    </button>
+    <button class="nav-item" onclick="navigate('production')" id="nav-production">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      Produksi
+    </button>
+    <button class="nav-item owner-only" onclick="navigate('costing')" id="nav-costing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Costing
+    </button>
+    <button class="nav-item owner-only" onclick="navigate('setup')" id="nav-setup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 19.07l1.41 1.41M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M4.93 4.93l1.41 1.41M12 20v2M12 2v2"/></svg>
+      Setup
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://kworthlldgfapydpldpb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3b3J0aGxsZGdmYXB5ZHBsZHBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDk2MjAsImV4cCI6MjA5NjU4NTYyMH0.SqxnxBWB6mM1dj5P0mL9ZNXlczOWN_frySC6il6IIWU';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let allItems = [];
+let invTab = 'raw_material';
+let prodTab = 'filling';
+let invSearch = '';
+
+const CAT_LABELS = {
+  raw_material: 'Raw Material', flavoring: 'Flavoring', colouring: 'Colouring',
+  cookies_sprinkle: 'Cookies & Sprinkle', frozen_chilled: 'Frozen / Chilled',
+  fruits_fillings: 'Fruits / Fillings', filling_ready: 'Filling Siap',
+  packaging: 'Packaging', cleaning: 'Cleaning'
+};
+
+const CAT_TABS = ['raw_material','flavoring','colouring','cookies_sprinkle','frozen_chilled','fruits_fillings','filling_ready','packaging','cleaning'];
+
+const COSTING_CATS = ['raw_material','flavoring','colouring','cookies_sprinkle','frozen_chilled','fruits_fillings','filling_ready'];
+
+// ======== AUTH ========
+let selectedUser = null;
+
+window.onload = async () => {
+  const saved = localStorage.getItem('mm_inv_user');
+  if (saved) { currentUser = JSON.parse(saved); showApp(); }
+  else loadUserList();
+};
+
+async function loadUserList() {
+  const { data } = await sb.from('mm_users').select('*').eq('active', true).order('name');
+  const list = document.getElementById('userList');
+  if (!data?.length) { list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted)">Tiada pengguna. Setup dulu.</p>'; return; }
+  list.innerHTML = data.map(u => `
+    <button class="user-btn" onclick="selectUser('${u.id}','${u.name}','${u.role}',this)">
+      <div class="uname">${u.name}</div>
+      <div class="urole">${u.role==='owner'?'👑 Owner':'🔧 Production'}</div>
+    </button>`).join('');
+}
+
+function selectUser(id, name, role, el) {
+  selectedUser = { id, name, role };
+  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('pinSection').style.display = 'block';
+  document.getElementById('pinInput').focus();
+  document.getElementById('loginError').textContent = '';
+}
+
+async function doLogin() {
+  if (!selectedUser) return;
+  const pin = document.getElementById('pinInput').value;
+  if (!pin) return;
+  const { data } = await sb.from('mm_users').select('*').eq('id', selectedUser.id).eq('pin', pin).single();
+  if (data) { currentUser = data; localStorage.setItem('mm_inv_user', JSON.stringify(data)); showApp(); }
+  else { document.getElementById('loginError').textContent = 'PIN salah. Cuba lagi.'; document.getElementById('pinInput').value = ''; }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement?.id === 'pinInput') doLogin();
+});
+
+function doLogout() {
+  currentUser = null; localStorage.removeItem('mm_inv_user');
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinSection').style.display = 'none';
+  selectedUser = null; loadUserList();
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'flex';
+  document.getElementById('topBarUser').textContent = currentUser.name;
+  if (currentUser.role !== 'owner') document.querySelectorAll('.owner-only').forEach(el => el.style.display = 'none');
+  navigate('dashboard');
+}
+
+// ======== NAV ========
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('nav-' + page);
+  if (el) el.classList.add('active');
+  hideFab();
+  const pages = { dashboard: renderDashboard, inventory: renderInventory, production: renderProduction, costing: renderCosting, setup: renderSetup };
+  if (pages[page]) pages[page]();
+}
+
+// ======== DASHBOARD ========
+async function renderDashboard() {
+  const c = document.getElementById('mainContent');
+  c.innerHTML = '<div class="loading">Loading...</div>';
+  const [{ data: items }, { data: batches }] = await Promise.all([
+    sb.from('mm_inventory_items').select('*').eq('active', true),
+    sb.from('mm_mochi_batches').select('*').order('batch_date', { ascending: false }).limit(5)
+  ]);
+  allItems = items || [];
+  const lowStock = allItems.filter(i => i.reorder_level > 0 && i.current_stock <= i.reorder_level);
+  const now = new Date(); const m = now.getMonth()+1; const y = now.getFullYear();
+  const monthBatches = (batches||[]).filter(b => { const d=new Date(b.batch_date); return d.getMonth()+1===m && d.getFullYear()===y; });
+  const totalUnits = monthBatches.reduce((s,b) => s+(b.units_produced||0), 0);
+
+  let html = `<div class="page-header"><h1>Dashboard</h1><p>${now.toLocaleDateString('ms-MY',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p></div>`;
+
+  if (lowStock.length > 0) html += `<div class="alert-banner"><div>⚠️</div><div class="alert-banner-text"><strong>${lowStock.length} item stok rendah / habis!</strong>${lowStock.slice(0,5).map(i=>`${i.name}`).join(', ')}${lowStock.length>5?` dan ${lowStock.length-5} lagi...`:''}</div></div>`;
+
+  html += `<div class="stat-grid">
+    <div class="stat-card"><div class="stat-val">${allItems.length}</div><div class="stat-label">Jumlah Item</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--red)">${lowStock.length}</div><div class="stat-label">Perlu Restock</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${monthBatches.length}</div><div class="stat-label">Batch Bulan Ini</div></div>
+    <div class="stat-card"><div class="stat-val">${totalUnits}</div><div class="stat-label">Unit Dihasilkan</div></div>
+  </div>`;
+
+  if (lowStock.length > 0) {
+    html += `<div class="card"><div class="card-title">⚠️ Perlu Restock</div>`;
+    html += lowStock.slice(0,8).map(i => `
+      <div class="inv-item" style="cursor:default">
+        <div class="inv-item-info"><div class="inv-item-name">${i.name}</div><div class="inv-item-meta">${CAT_LABELS[i.category]||i.category}</div></div>
+        <div class="inv-item-right"><div class="inv-stock low">${parseFloat(i.current_stock).toFixed(1)}</div><div class="inv-unit">${i.unit}</div></div>
+      </div>`).join('');
+    html += `</div>`;
+  }
+
+  html += `<div class="card"><div class="card-title">Batch Terkini</div>`;
+  if (!batches?.length) html += `<div class="empty-state"><div class="icon">🍡</div><p>Belum ada batch</p></div>`;
+  else html += batches.slice(0,5).map(b=>`
+    <div class="log-item">
+      <div class="log-top"><div class="log-title">🍡 ${b.units_produced} unit</div><div class="log-date">${new Date(b.batch_date).toLocaleDateString('ms-MY')}</div></div>
+      <div class="log-detail">Kos: RM ${((b.filling_cost||0)+(b.raw_mat_cost||0)).toFixed(2)}${b.notes?' • '+b.notes:''}</div>
+    </div>`).join('');
+  html += `</div>`;
+  c.innerHTML = html;
+}
+
+// ======== INVENTORY ========
+async function renderInventory() {
+  const c = document.getElementById('mainContent');
+  c.innerHTML = '<div class="loading">Loading...</div>';
+  const { data } = await sb.from('mm_inventory_items').select('*').eq('active', true).order('name');
+  allItems = data || [];
+  invSearch = '';
+  renderInvPage();
+  showFab(() => openAddItemModal());
+}
+
+function renderInvPage() {
+  const c = document.getElementById('mainContent');
+  let filtered = allItems.filter(i => i.category === invTab);
+  if (invSearch) filtered = filtered.filter(i => i.name.toLowerCase().includes(invSearch.toLowerCase()));
+
+  const tabs = CAT_TABS.map(cat => `<button class="tab ${invTab===cat?'active':''}" onclick="switchInvTab('${cat}')">${CAT_LABELS[cat]}</button>`).join('');
+
+  let html = `
+    <div class="page-header"><h1>Inventori</h1><p>${allItems.length} item • ${allItems.filter(i=>i.reorder_level>0&&i.current_stock<=i.reorder_level).length} perlu restock</p></div>
+    <div class="tabs">${tabs}</div>
+    <div class="search-bar"><span>🔍</span><input placeholder="Cari item..." oninput="invSearch=this.value;renderInvPage()" value="${invSearch}"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-pink btn-sm" style="flex:1" onclick="openStockInModal()">+ Masuk Stok</button>
+      <button class="btn btn-outline btn-sm" style="flex:1" onclick="openStockOutModal()">− Keluar Stok</button>
+    </div>
+    <div class="card">`;
+
+  if (!filtered.length) html += `<div class="empty-state"><div class="icon">📦</div><p>${invSearch?'Tiada item dijumpai':'Belum ada item. Tap + untuk tambah.'}</p></div>`;
+  else html += filtered.map(i => {
+    const isLow = i.reorder_level > 0 && i.current_stock <= i.reorder_level;
+    const stockClass = i.current_stock <= 0 ? 'zero' : isLow ? 'low' : 'ok';
+    let priceIndicator = '';
+    if (i.previous_cost && i.previous_cost > 0 && i.cost_per_unit !== i.previous_cost) {
+      const pct = ((i.cost_per_unit - i.previous_cost) / i.previous_cost * 100).toFixed(1);
+      if (i.cost_per_unit > i.previous_cost) priceIndicator = `<span class="price-indicator price-up">🔴 +${pct}%</span>`;
+      else priceIndicator = `<span class="price-indicator price-down">🟢 ${pct}%</span>`;
+    } else if (i.previous_cost > 0 && i.cost_per_unit === i.previous_cost) {
+      priceIndicator = `<span class="price-indicator price-same">🟡 0%</span>`;
+    }
+    return `<div class="inv-item" onclick="openItemDetail('${i.id}')">
+      <div class="inv-item-info">
+        <div class="inv-item-name">${i.name}</div>
+        <div class="inv-item-meta">RM ${parseFloat(i.cost_per_unit||0).toFixed(2)}/${i.unit} ${priceIndicator}</div>
+      </div>
+      <div class="inv-item-right">
+        <div class="inv-stock ${stockClass}">${parseFloat(i.current_stock||0).toFixed(1)}</div>
+        <div class="inv-unit">${i.unit}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  html += `</div>`;
+  c.innerHTML = html;
+}
+
+function switchInvTab(tab) { invTab = tab; invSearch = ''; renderInvPage(); }
+
+async function openItemDetail(itemId) {
+  const item = allItems.find(i => i.id === itemId);
+  if (!item) return;
+  const isOwner = currentUser.role === 'owner';
+
+  let priceHistoryHtml = '';
+  if (isOwner) {
+    const { data: ph } = await sb.from('mm_price_history').select('*').eq('item_id', itemId).order('recorded_at', { ascending: false }).limit(10);
+    if (ph?.length) {
+      priceHistoryHtml = `<div style="margin-top:16px"><div class="card-title" style="margin-bottom:10px">📈 History Harga</div>`;
+      priceHistoryHtml += ph.map(p => {
+        let dir = p.direction === 'naik' ? `<span class="ph-change" style="color:var(--red)">🔴 +${parseFloat(p.change_pct||0).toFixed(1)}%</span>` :
+          p.direction === 'turun' ? `<span class="ph-change" style="color:var(--green)">🟢 ${parseFloat(p.change_pct||0).toFixed(1)}%</span>` :
+          `<span class="ph-change" style="color:var(--orange)">🟡 0%</span>`;
+        return `<div class="ph-item">
+          <div><div class="ph-price">RM ${parseFloat(p.new_price||0).toFixed(2)}</div><div class="ph-date">${new Date(p.recorded_at).toLocaleDateString('ms-MY')} ${new Date(p.recorded_at).toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'})}</div></div>
+          ${dir}
+        </div>`;
+      }).join('');
+      priceHistoryHtml += `</div>`;
+    } else {
+      priceHistoryHtml = `<div style="margin-top:16px"><div class="card-title" style="margin-bottom:8px">📈 History Harga</div><p style="font-size:0.82rem;color:var(--text-muted)">Belum ada history. History akan direkod setiap kali masuk stok.</p></div>`;
+    }
+  }
+
+  const isLow = item.reorder_level > 0 && item.current_stock <= item.reorder_level;
+
+  showModal(item.name, `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px">${CAT_LABELS[item.category]||item.category}</div>
+        <div style="font-size:2rem;font-weight:800;color:${isLow?'var(--red)':'var(--green)'}">${parseFloat(item.current_stock||0).toFixed(2)} <span style="font-size:1rem;font-weight:500">${item.unit}</span></div>
+        <div style="font-size:0.82rem;color:var(--text-muted)">Reorder level: ${item.reorder_level} ${item.unit}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:1.3rem;font-weight:800;color:var(--pink)">RM ${parseFloat(item.cost_per_unit||0).toFixed(2)}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">per ${item.unit}</div>
+      </div>
+    </div>
+    ${priceHistoryHtml}
+    ${isOwner ? `<div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-outline" onclick="openEditItemModal('${item.id}')">Edit Item</button>
+      <button class="btn btn-pink" onclick="openStockInModal('${item.id}')">+ Masuk Stok</button>
+    </div>` : `<div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-pink" style="width:100%" onclick="openStockInModal('${item.id}')">+ Masuk Stok</button>
+    </div>`}
+  `);
+}
+
+function openAddItemModal() {
+  showModal('Tambah Item Baru', `
+    <div class="form-group"><label class="form-label">Nama Item</label><input class="form-input" id="m_name" placeholder="e.g. Tepung Beras 1kg"></div>
+    <div class="form-group"><label class="form-label">Kategori</label>
+      <select class="form-select" id="m_cat">${CAT_TABS.map(c=>`<option value="${c}">${CAT_LABELS[c]}</option>`).join('')}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m_unit" placeholder="kg / pcs / btl"></div>
+      <div class="form-group"><label class="form-label">Kos/Unit (RM)</label><input class="form-input" id="m_cost" type="number" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Reorder Level</label><input class="form-input" id="m_reorder" type="number" placeholder="0" step="0.01"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveNewItem()">Simpan</button>
+    </div>`);
+}
+
+async function saveNewItem() {
+  const name = document.getElementById('m_name').value.trim();
+  const cat = document.getElementById('m_cat').value;
+  const unit = document.getElementById('m_unit').value.trim();
+  const cost = parseFloat(document.getElementById('m_cost').value) || 0;
+  const reorder = parseFloat(document.getElementById('m_reorder').value) || 0;
+  if (!name || !unit) return showToast('Nama & unit wajib diisi', 'error');
+  const { error } = await sb.from('mm_inventory_items').insert({ name, category: cat, unit, cost_per_unit: cost, previous_cost: 0, reorder_level: reorder });
+  if (error) return showToast('Gagal simpan', 'error');
+  showToast('Item ditambah!', 'success');
+  closeModal();
+  await renderInventory();
+  switchInvTab(cat);
+}
+
+function openEditItemModal(itemId) {
+  const item = allItems.find(i => i.id === itemId);
+  if (!item) return;
+  closeModal();
+  showModal('Edit Item', `
+    <div class="form-group"><label class="form-label">Nama Item</label><input class="form-input" id="ei_name" value="${item.name}"></div>
+    <div class="form-group"><label class="form-label">Kategori</label>
+      <select class="form-select" id="ei_cat">${CAT_TABS.map(c=>`<option value="${c}" ${c===item.category?'selected':''}>${CAT_LABELS[c]}</option>`).join('')}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="ei_unit" value="${item.unit}"></div>
+      <div class="form-group"><label class="form-label">Reorder Level</label><input class="form-input" id="ei_reorder" type="number" value="${item.reorder_level||0}" step="0.01"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveEditItem('${itemId}')">Simpan</button>
+    </div>`);
+}
+
+async function saveEditItem(itemId) {
+  const name = document.getElementById('ei_name').value.trim();
+  const cat = document.getElementById('ei_cat').value;
+  const unit = document.getElementById('ei_unit').value.trim();
+  const reorder = parseFloat(document.getElementById('ei_reorder').value) || 0;
+  if (!name || !unit) return showToast('Nama & unit wajib diisi', 'error');
+  const { error } = await sb.from('mm_inventory_items').update({ name, category: cat, unit, reorder_level: reorder }).eq('id', itemId);
+  if (error) return showToast('Gagal simpan', 'error');
+  showToast('Item dikemaskini!', 'success');
+  closeModal();
+  renderInventory();
+}
+
+async function openStockInModal(preselectedId = null) {
+  const catItems = invTab === 'all' ? allItems : allItems;
+  showModal('Masuk Stok', `
+    <div class="form-group"><label class="form-label">Item</label>
+      <select class="form-select" id="si_item" onchange="updateStockInPrice()">${allItems.map(i=>`<option value="${i.id}" data-cost="${i.cost_per_unit||0}" data-prev="${i.previous_cost||0}" ${i.id===preselectedId?'selected':''}>${i.name} (${i.unit})</option>`).join('')}</select>
+    </div>
+    <div id="si_price_compare" style="margin-bottom:10px"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Kuantiti</label><input class="form-input" id="si_qty" type="number" placeholder="0" step="0.01" min="0"></div>
+      <div class="form-group"><label class="form-label">Harga/Unit (RM)</label><input class="form-input" id="si_cost" type="number" placeholder="0.00" step="0.01" oninput="updateStockInPriceCompare()"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Tarikh</label><input class="form-input" id="si_date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="form-group"><label class="form-label">Nota</label><input class="form-input" id="si_notes" placeholder="Supplier, no. invois..."></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-green" onclick="saveStockIn()">Masuk Stok</button>
+    </div>`);
+  updateStockInPrice();
+}
+
+function updateStockInPrice() {
+  const sel = document.getElementById('si_item');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const cost = parseFloat(opt?.dataset?.cost || 0);
+  document.getElementById('si_cost').value = cost || '';
+  updateStockInPriceCompare();
+}
+
+function updateStockInPriceCompare() {
+  const sel = document.getElementById('si_item');
+  const newCost = parseFloat(document.getElementById('si_cost').value) || 0;
+  const opt = sel?.options[sel.selectedIndex];
+  const oldCost = parseFloat(opt?.dataset?.cost || 0);
+  const div = document.getElementById('si_price_compare');
+  if (!div || !oldCost) return;
+  if (newCost === 0 || newCost === oldCost) { div.innerHTML = `<div style="font-size:0.8rem;color:var(--orange);font-weight:600">🟡 Harga sama: RM ${oldCost.toFixed(2)}</div>`; return; }
+  const pct = ((newCost - oldCost) / oldCost * 100).toFixed(1);
+  if (newCost > oldCost) div.innerHTML = `<div style="font-size:0.8rem;color:var(--red);font-weight:600">🔴 Naik ${pct}% (RM ${oldCost.toFixed(2)} → RM ${newCost.toFixed(2)})</div>`;
+  else div.innerHTML = `<div style="font-size:0.8rem;color:var(--green);font-weight:600">🟢 Turun ${pct}% (RM ${oldCost.toFixed(2)} → RM ${newCost.toFixed(2)})</div>`;
+}
+
+async function saveStockIn() {
+  const itemId = document.getElementById('si_item').value;
+  const qty = parseFloat(document.getElementById('si_qty').value);
+  const cost = parseFloat(document.getElementById('si_cost').value) || 0;
+  const date = document.getElementById('si_date').value;
+  const notes = document.getElementById('si_notes').value;
+  if (!qty || qty <= 0) return showToast('Kuantiti wajib diisi', 'error');
+
+  const item = allItems.find(i => i.id === itemId);
+  const oldCost = item.cost_per_unit || 0;
+  const newStock = (item.current_stock || 0) + qty;
+
+  // Determine price direction
+  let direction = 'maintain';
+  let changePct = 0;
+  if (oldCost > 0) {
+    if (cost > oldCost) { direction = 'naik'; changePct = ((cost - oldCost) / oldCost * 100); }
+    else if (cost < oldCost) { direction = 'turun'; changePct = ((cost - oldCost) / oldCost * 100); }
+  }
+
+  // Save price history if price changed or first time
+  if (oldCost !== cost || oldCost === 0) {
+    await sb.from('mm_price_history').insert({ item_id: itemId, old_price: oldCost, new_price: cost, change_pct: changePct, direction, recorded_by: currentUser.id });
+  }
+
+  await sb.from('mm_stock_movements').insert({ item_id: itemId, movement_type: 'in', quantity: qty, unit_cost: cost, total_cost: qty * cost, reason: 'purchase', noted_by: currentUser.id, movement_date: date, notes });
+  await sb.from('mm_inventory_items').update({ current_stock: newStock, previous_cost: oldCost, cost_per_unit: cost }).eq('id', itemId);
+
+  showToast('Stok masuk berjaya!', 'success');
+  closeModal();
+  renderInventory();
+}
+
+async function openStockOutModal() {
+  showModal('Keluar Stok (Manual)', `
+    <div class="form-group"><label class="form-label">Item</label>
+      <select class="form-select" id="so_item">${allItems.map(i=>`<option value="${i.id}">${i.name} (${parseFloat(i.current_stock||0).toFixed(1)} ${i.unit})</option>`).join('')}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Kuantiti</label><input class="form-input" id="so_qty" type="number" placeholder="0" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Sebab</label>
+        <select class="form-select" id="so_reason">
+          <option value="wastage">Pembaziran</option>
+          <option value="adjustment">Adjustment</option>
+          <option value="lain_lain">Lain-lain</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Nota</label><input class="form-input" id="so_notes" placeholder="Keterangan..."></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-red" onclick="saveStockOut()">Keluar Stok</button>
+    </div>`);
+}
+
+async function saveStockOut() {
+  const itemId = document.getElementById('so_item').value;
+  const qty = parseFloat(document.getElementById('so_qty').value);
+  const reason = document.getElementById('so_reason').value;
+  const notes = document.getElementById('so_notes').value;
+  if (!qty || qty <= 0) return showToast('Kuantiti wajib diisi', 'error');
+  const item = allItems.find(i => i.id === itemId);
+  if (qty > item.current_stock) return showToast('Stok tidak mencukupi!', 'error');
+  await sb.from('mm_stock_movements').insert({ item_id: itemId, movement_type: 'out', quantity: qty, reason, noted_by: currentUser.id, movement_date: new Date().toISOString().split('T')[0], notes });
+  await sb.from('mm_inventory_items').update({ current_stock: item.current_stock - qty }).eq('id', itemId);
+  showToast('Stok dikurangkan!', 'success');
+  closeModal();
+  renderInventory();
+}
+
+// ======== PRODUCTION ========
+async function renderProduction() {
+  const c = document.getElementById('mainContent');
+  c.innerHTML = '<div class="loading">Loading...</div>';
+  const [{ data: items }, { data: fl }, { data: mb }] = await Promise.all([
+    sb.from('mm_inventory_items').select('*').eq('active', true),
+    sb.from('mm_filling_production').select('*, mm_inventory_items(name)').order('batch_date', { ascending: false }).limit(30),
+    sb.from('mm_mochi_batches').select('*').order('batch_date', { ascending: false }).limit(30)
+  ]);
+  allItems = items || [];
+  renderProdPage(fl || [], mb || []);
+}
+
+function renderProdPage(fl, mb) {
+  const c = document.getElementById('mainContent');
+  let html = `
+    <div class="page-header"><h1>Log Produksi</h1><p>Rekod filling & batch mochi</p></div>
+    <div class="tabs">
+      <button class="tab ${prodTab==='filling'?'active':''}" onclick="switchProdTab('filling',${JSON.stringify(fl).replace(/'/g,"&#39;")},${JSON.stringify(mb).replace(/'/g,"&#39;")})">Filling</button>
+      <button class="tab ${prodTab==='mochi'?'active':''}" onclick="switchProdTab('mochi',${JSON.stringify(fl).replace(/'/g,"&#39;")},${JSON.stringify(mb).replace(/'/g,"&#39;")})">Batch Mochi</button>
+    </div>`;
+
+  if (prodTab === 'filling') {
+    html += `<button class="btn btn-pink" style="width:100%;margin-bottom:14px" onclick="openFillingProductionModal()">+ Log Produksi Filling</button>`;
+    if (!fl.length) html += `<div class="empty-state"><div class="icon">🍓</div><p>Belum ada log filling</p></div>`;
+    else html += fl.map(f=>`
+      <div class="log-item">
+        <div class="log-top"><div class="log-title">${f.mm_inventory_items?.name||'—'}</div><div class="log-date">${new Date(f.batch_date).toLocaleDateString('ms-MY')}</div></div>
+        <div class="log-detail">Dihasilkan: ${f.qty_produced} • Kos RM ${parseFloat(f.raw_mat_cost||0).toFixed(2)}${f.notes?' • '+f.notes:''}</div>
+      </div>`).join('');
+  } else {
+    html += `<button class="btn btn-pink" style="width:100%;margin-bottom:14px" onclick="openMochiBatchModal()">+ Log Batch Mochi</button>`;
+    if (!mb.length) html += `<div class="empty-state"><div class="icon">🍡</div><p>Belum ada batch</p></div>`;
+    else html += mb.map(b=>`
+      <div class="log-item">
+        <div class="log-top"><div class="log-title">🍡 ${b.units_produced} unit</div><div class="log-date">${new Date(b.batch_date).toLocaleDateString('ms-MY')}</div></div>
+        <div class="log-detail">Kos filling: RM ${parseFloat(b.filling_cost||0).toFixed(2)} • Raw mat: RM ${parseFloat(b.raw_mat_cost||0).toFixed(2)}${b.notes?' • '+b.notes:''}</div>
+      </div>`).join('');
+  }
+  c.innerHTML = html;
+}
+
+function switchProdTab(tab, fl, mb) { prodTab = tab; renderProdPage(fl, mb); }
+
+function openFillingProductionModal() {
+  const fillings = allItems.filter(i => i.category === 'filling_ready');
+  const rawMats = allItems.filter(i => COSTING_CATS.includes(i.category));
+  showModal('Log Produksi Filling', `
+    <div class="form-group"><label class="form-label">Filling Dihasilkan</label>
+      <select class="form-select" id="fp_filling">
+        ${fillings.length ? fillings.map(f=>`<option value="${f.id}">${f.name}</option>`).join('') : '<option value="">— Tiada filling. Tambah dulu. —</option>'}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Kuantiti Dihasilkan</label><input class="form-input" id="fp_qty" type="number" placeholder="0" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Tarikh</label><input class="form-input" id="fp_date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Bahan Digunakan</label>
+      <div id="fp_lines" class="line-items-container">
+        <div class="line-item-row">
+          <select class="fp_rm">${rawMats.map(r=>`<option value="${r.id}" data-cost="${r.cost_per_unit||0}">${r.name}</option>`).join('')}</select>
+          <input type="number" class="fp_qty_in" placeholder="Qty" step="0.01">
+          <button class="remove-line" onclick="this.closest('.line-item-row').remove()">✕</button>
+        </div>
+      </div>
+      <button class="add-line-btn" onclick="addFpLine()">+ Tambah bahan</button>
+    </div>
+    <div class="form-group"><label class="form-label">Nota</label><input class="form-input" id="fp_notes" placeholder="Nota..."></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveFillingProd()">Simpan</button>
+    </div>`);
+}
+
+function addFpLine() {
+  const rawMats = allItems.filter(i => COSTING_CATS.includes(i.category));
+  const c = document.getElementById('fp_lines');
+  const d = document.createElement('div'); d.className = 'line-item-row';
+  d.innerHTML = `<select class="fp_rm">${rawMats.map(r=>`<option value="${r.id}" data-cost="${r.cost_per_unit||0}">${r.name}</option>`).join('')}</select><input type="number" class="fp_qty_in" placeholder="Qty" step="0.01"><button class="remove-line" onclick="this.closest('.line-item-row').remove()">✕</button>`;
+  c.appendChild(d);
+}
+
+async function saveFillingProd() {
+  const fillingId = document.getElementById('fp_filling').value;
+  const qty = parseFloat(document.getElementById('fp_qty').value);
+  const date = document.getElementById('fp_date').value;
+  const notes = document.getElementById('fp_notes').value;
+  if (!fillingId || !qty || qty <= 0) return showToast('Filling & kuantiti wajib diisi', 'error');
+
+  let totalCost = 0; const lines = [];
+  document.querySelectorAll('#fp_lines .line-item-row').forEach(row => {
+    const itemId = row.querySelector('.fp_rm').value;
+    const lineQty = parseFloat(row.querySelector('.fp_qty_in').value) || 0;
+    if (!lineQty) return;
+    const item = allItems.find(i => i.id === itemId);
+    const cost = lineQty * (item?.cost_per_unit || 0);
+    totalCost += cost;
+    lines.push({ item_id: itemId, quantity_used: lineQty, unit_cost: item?.cost_per_unit||0, total_cost: cost });
+  });
+
+  const { data: prod, error } = await sb.from('mm_filling_production').insert({ filling_item_id: fillingId, batch_date: date, qty_produced: qty, raw_mat_cost: totalCost, notes, produced_by: currentUser.id }).select().single();
+  if (error) return showToast('Gagal simpan', 'error');
+
+  if (lines.length) {
+    await sb.from('mm_filling_production_items').insert(lines.map(l => ({ ...l, production_id: prod.id })));
+    for (const l of lines) {
+      const item = allItems.find(i => i.id === l.item_id);
+      await sb.from('mm_inventory_items').update({ current_stock: Math.max(0, (item?.current_stock||0) - l.quantity_used) }).eq('id', l.item_id);
+    }
+  }
+
+  const filling = allItems.find(i => i.id === fillingId);
+  await sb.from('mm_inventory_items').update({ current_stock: (filling?.current_stock||0) + qty }).eq('id', fillingId);
+
+  showToast('Log filling disimpan!', 'success');
+  closeModal(); renderProduction();
+}
+
+function openMochiBatchModal() {
+  const fillings = allItems.filter(i => i.category === 'filling_ready');
+  const rawMats = allItems.filter(i => COSTING_CATS.filter(c=>c!=='filling_ready').includes(i.category));
+  showModal('Log Batch Mochi', `
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Unit Dihasilkan</label><input class="form-input" id="mb_units" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Tarikh</label><input class="form-input" id="mb_date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Filling Digunakan</label>
+      <div id="mb_fl_lines" class="line-items-container">
+        <div class="line-item-row">
+          <select class="mb_fl">${fillings.length?fillings.map(f=>`<option value="${f.id}" data-cost="${f.cost_per_unit||0}">${f.name}</option>`).join(''):'<option>— Tiada filling —</option>'}</select>
+          <input type="number" class="mb_fl_qty" placeholder="Qty" step="0.01">
+          <button class="remove-line" onclick="this.closest('.line-item-row').remove()">✕</button>
+        </div>
+      </div>
+      <button class="add-line-btn" onclick="addMbFlLine()">+ Tambah filling</button>
+    </div>
+    <div class="form-group"><label class="form-label">Raw Material (kulit)</label>
+      <div id="mb_rm_lines" class="line-items-container">
+        <div class="line-item-row">
+          <select class="mb_rm">${rawMats.map(r=>`<option value="${r.id}" data-cost="${r.cost_per_unit||0}">${r.name}</option>`).join('')}</select>
+          <input type="number" class="mb_rm_qty" placeholder="Qty" step="0.01">
+          <button class="remove-line" onclick="this.closest('.line-item-row').remove()">✕</button>
+        </div>
+      </div>
+      <button class="add-line-btn" onclick="addMbRmLine()">+ Tambah bahan</button>
+    </div>
+    <div class="form-group"><label class="form-label">Nota</label><input class="form-input" id="mb_notes" placeholder="Nota batch..."></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveMochiBatch()">Simpan</button>
+    </div>`);
+}
+
+function addMbFlLine() {
+  const fillings = allItems.filter(i => i.category === 'filling_ready');
+  const c = document.getElementById('mb_fl_lines'); const d = document.createElement('div'); d.className = 'line-item-row';
+  d.innerHTML = `<select class="mb_fl">${fillings.map(f=>`<option value="${f.id}" data-cost="${f.cost_per_unit||0}">${f.name}</option>`).join('')}</select><input type="number" class="mb_fl_qty" placeholder="Qty" step="0.01"><button class="remove-line" onclick="this.closest('.line-item-row').remove()">✕</button>`;
+  c.appendChild(d);
+}
+
+function addMbRmLine() {
+  const rawMats = allItems.filter(i => COSTING_CATS.filter(c=>c!=='filling_ready').includes(i.category));
+  const c = document.getElementById('mb_rm_lines'); const d = document.createElement('div'); d.className = 'line-item-row';
+  d.innerHTML = `<select class="mb_rm">${rawMats.map(r=>`<option value="${r.id}" data-cost="${r.cost_per_unit||0}">${r.name}</option>`).join('')}</select><input type="number" class="mb_rm_qty" placeholder="Qty" step="0.01"><button class="remove-line" onclick="this.closest('.line-item-row').remove()">✕</button>`;
+  c.appendChild(d);
+}
+
+async function saveMochiBatch() {
+  const units = parseFloat(document.getElementById('mb_units').value);
+  const date = document.getElementById('mb_date').value;
+  const notes = document.getElementById('mb_notes').value;
+  if (!units || units <= 0) return showToast('Unit wajib diisi', 'error');
+
+  let fillingCost = 0, rawMatCost = 0; const flLines = [], rmLines = [];
+
+  document.querySelectorAll('#mb_fl_lines .line-item-row').forEach(row => {
+    const id = row.querySelector('.mb_fl').value;
+    const qty = parseFloat(row.querySelector('.mb_fl_qty').value) || 0;
+    if (!qty) return;
+    const item = allItems.find(i => i.id === id);
+    const cost = qty * (item?.cost_per_unit||0);
+    fillingCost += cost;
+    flLines.push({ filling_item_id: id, quantity_used: qty, cost_per_unit: item?.cost_per_unit||0, total_cost: cost });
+  });
+
+  document.querySelectorAll('#mb_rm_lines .line-item-row').forEach(row => {
+    const id = row.querySelector('.mb_rm').value;
+    const qty = parseFloat(row.querySelector('.mb_rm_qty').value) || 0;
+    if (!qty) return;
+    const item = allItems.find(i => i.id === id);
+    const cost = qty * (item?.cost_per_unit||0);
+    rawMatCost += cost;
+    rmLines.push({ item_id: id, quantity_used: qty, unit_cost: item?.cost_per_unit||0, total_cost: cost });
+  });
+
+  const { data: batch, error } = await sb.from('mm_mochi_batches').insert({ batch_date: date, units_produced: units, filling_cost: fillingCost, raw_mat_cost: rawMatCost, notes, produced_by: currentUser.id }).select().single();
+  if (error) return showToast('Gagal simpan', 'error');
+
+  if (flLines.length) {
+    await sb.from('mm_mochi_batch_fillings').insert(flLines.map(l=>({...l, batch_id: batch.id})));
+    for (const l of flLines) {
+      const item = allItems.find(i => i.id === l.filling_item_id);
+      await sb.from('mm_inventory_items').update({ current_stock: Math.max(0,(item?.current_stock||0)-l.quantity_used) }).eq('id', l.filling_item_id);
+    }
+  }
+  if (rmLines.length) {
+    await sb.from('mm_mochi_batch_items').insert(rmLines.map(l=>({...l, batch_id: batch.id})));
+    for (const l of rmLines) {
+      const item = allItems.find(i => i.id === l.item_id);
+      await sb.from('mm_inventory_items').update({ current_stock: Math.max(0,(item?.current_stock||0)-l.quantity_used) }).eq('id', l.item_id);
+    }
+  }
+
+  showToast('Batch mochi disimpan!', 'success');
+  closeModal(); renderProduction();
+}
+
+// ======== COSTING ========
+async function renderCosting() {
+  if (currentUser.role !== 'owner') return;
+  const now = new Date();
+  const c = document.getElementById('mainContent');
+  c.innerHTML = `
+    <div class="page-header"><h1>Costing</h1><p>Kira kos per unit mochi</p></div>
+    <div class="card">
+      <div class="card-title">Pilih Tempoh</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Bulan</label>
+          <select class="form-select" id="c_month">${['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogos','Sep','Okt','Nov','Dis'].map((m,i)=>`<option value="${i+1}" ${i+1===now.getMonth()+1?'selected':''}>${m}</option>`).join('')}</select>
+        </div>
+        <div class="form-group"><label class="form-label">Tahun</label>
+          <select class="form-select" id="c_year">${[now.getFullYear()-1,now.getFullYear(),now.getFullYear()+1].map(y=>`<option value="${y}" ${y===now.getFullYear()?'selected':''}>${y}</option>`).join('')}</select>
+        </div>
+      </div>
+      <button class="btn btn-pink" style="width:100%" onclick="loadCosting()">Kira Costing</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-outline btn-sm" style="flex:1" onclick="openOpCostModal()">+ Kos Operasi</button>
+      <button class="btn btn-outline btn-sm" style="flex:1" onclick="openLabourModal()">+ Kos Buruh</button>
+    </div>
+    <div id="costingResult"></div>`;
+}
+
+async function loadCosting() {
+  const month = parseInt(document.getElementById('c_month').value);
+  const year = parseInt(document.getElementById('c_year').value);
+  const result = document.getElementById('costingResult');
+  result.innerHTML = '<div class="loading">Mengira...</div>';
+  const start = `${year}-${String(month).padStart(2,'0')}-01`;
+  const end = new Date(year, month, 0).toISOString().split('T')[0];
+
+  const [{ data: batches }, { data: opCosts }, { data: labour }] = await Promise.all([
+    sb.from('mm_mochi_batches').select('*').gte('batch_date', start).lte('batch_date', end),
+    sb.from('mm_operation_costs').select('*').eq('period_month', month).eq('period_year', year),
+    sb.from('mm_labour_costs').select('*').eq('period_month', month).eq('period_year', year)
+  ]);
+
+  const totalUnits = (batches||[]).reduce((s,b)=>s+(b.units_produced||0),0);
+  const totalFilling = (batches||[]).reduce((s,b)=>s+(b.filling_cost||0),0);
+  const totalRawMat = (batches||[]).reduce((s,b)=>s+(b.raw_mat_cost||0),0);
+  const totalOp = (opCosts||[]).reduce((s,c)=>s+(c.amount||0),0);
+  const totalLabour = (labour||[]).reduce((s,l)=>s+(l.total_pay||0),0);
+  const grand = totalFilling + totalRawMat + totalOp + totalLabour;
+  const perUnit = totalUnits > 0 ? grand / totalUnits : 0;
+  const months = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogos','Sep','Okt','Nov','Dis'];
+
+  result.innerHTML = `
+    <div class="card">
+      <div class="card-title">Ringkasan — ${months[month-1]} ${year}</div>
+      <div class="cost-row"><span>Kos Filling</span><span>RM ${totalFilling.toFixed(2)}</span></div>
+      <div class="cost-row"><span>Kos Raw Material</span><span>RM ${totalRawMat.toFixed(2)}</span></div>
+      <div class="cost-row"><span>Kos Operasi</span><span>RM ${totalOp.toFixed(2)}</span></div>
+      <div class="cost-row"><span>Kos Buruh</span><span>RM ${totalLabour.toFixed(2)}</span></div>
+      <div class="cost-row total"><span>JUMLAH KOS</span><span>RM ${grand.toFixed(2)}</span></div>
+      <div class="cost-row" style="padding-top:6px"><span>Unit Dihasilkan</span><span><strong>${totalUnits} unit</strong></span></div>
+      <div class="cost-highlight">
+        <div class="big">RM ${perUnit.toFixed(4)}</div>
+        <div class="lbl">Kos per unit mochi — ${months[month-1]} ${year}</div>
+      </div>
+    </div>
+    ${opCosts?.length ? `<div class="card"><div class="card-title">Kos Operasi</div>${opCosts.map(c=>`<div class="cost-row"><span>${c.category}${c.description?' — '+c.description:''}</span><span>RM ${parseFloat(c.amount).toFixed(2)}</span></div>`).join('')}</div>` : ''}
+    ${labour?.length ? `<div class="card"><div class="card-title">Kos Buruh</div>${labour.map(l=>`<div class="cost-row"><span>${l.staff_name} (${l.pay_type==='daily'?l.days_worked+' hari':'bulanan'})</span><span>RM ${parseFloat(l.total_pay).toFixed(2)}</span></div>`).join('')}</div>` : ''}`;
+}
+
+function openOpCostModal() {
+  const month = parseInt(document.getElementById('c_month')?.value || new Date().getMonth()+1);
+  const year = parseInt(document.getElementById('c_year')?.value || new Date().getFullYear());
+  showModal('Tambah Kos Operasi', `
+    <div class="form-group"><label class="form-label">Kategori</label>
+      <select class="form-select" id="oc_cat">
+        <option value="sewa">Sewa</option>
+        <option value="utility">Utility (elektrik/air/gas)</option>
+        <option value="petrol">Petrol</option>
+        <option value="packaging">Packaging (lumpsum)</option>
+        <option value="cleaning">Cleaning (lumpsum)</option>
+        <option value="lain_lain">Lain-lain</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Keterangan</label><input class="form-input" id="oc_desc" placeholder="e.g. Sewa kilang Jun"></div>
+    <div class="form-group"><label class="form-label">Jumlah (RM)</label><input class="form-input" id="oc_amount" type="number" placeholder="0.00" step="0.01"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveOpCost(${month},${year})">Simpan</button>
+    </div>`);
+}
+
+async function saveOpCost(month, year) {
+  const cat = document.getElementById('oc_cat').value;
+  const desc = document.getElementById('oc_desc').value;
+  const amount = parseFloat(document.getElementById('oc_amount').value);
+  if (!amount || amount <= 0) return showToast('Jumlah wajib diisi', 'error');
+  await sb.from('mm_operation_costs').insert({ period_month: month, period_year: year, category: cat, description: desc, amount, recorded_by: currentUser.id });
+  showToast('Kos operasi disimpan!', 'success');
+  closeModal(); loadCosting();
+}
+
+function openLabourModal() {
+  const month = parseInt(document.getElementById('c_month')?.value || new Date().getMonth()+1);
+  const year = parseInt(document.getElementById('c_year')?.value || new Date().getFullYear());
+  showModal('Tambah Kos Buruh', `
+    <div class="form-group"><label class="form-label">Nama Staf</label><input class="form-input" id="lb_name" placeholder="e.g. Nurul"></div>
+    <div class="form-group"><label class="form-label">Jenis Gaji</label>
+      <select class="form-select" id="lb_type" onchange="toggleLabour()">
+        <option value="monthly">Bulanan (Fixed)</option>
+        <option value="daily">Harian</option>
+      </select>
+    </div>
+    <div id="lb_monthly"><div class="form-group"><label class="form-label">Gaji Bulanan (RM)</label><input class="form-input" id="lb_mrate" type="number" placeholder="0.00" step="0.01"></div></div>
+    <div id="lb_daily" style="display:none">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Rate Harian (RM)</label><input class="form-input" id="lb_drate" type="number" placeholder="0.00" step="0.01" oninput="calcLabour()"></div>
+        <div class="form-group"><label class="form-label">Hari Bekerja</label><input class="form-input" id="lb_days" type="number" placeholder="0" oninput="calcLabour()"></div>
+      </div>
+      <div id="lb_calc" style="font-size:0.82rem;color:var(--pink);font-weight:700;margin-bottom:8px"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveLabour(${month},${year})">Simpan</button>
+    </div>`);
+}
+
+function toggleLabour() {
+  const t = document.getElementById('lb_type').value;
+  document.getElementById('lb_monthly').style.display = t==='monthly'?'block':'none';
+  document.getElementById('lb_daily').style.display = t==='daily'?'block':'none';
+}
+
+function calcLabour() {
+  const r = parseFloat(document.getElementById('lb_drate').value)||0;
+  const d = parseInt(document.getElementById('lb_days').value)||0;
+  document.getElementById('lb_calc').textContent = `Jumlah: RM ${(r*d).toFixed(2)}`;
+}
+
+async function saveLabour(month, year) {
+  const name = document.getElementById('lb_name').value.trim();
+  const type = document.getElementById('lb_type').value;
+  if (!name) return showToast('Nama wajib diisi', 'error');
+  let total = 0, daily_rate = null, monthly_rate = null, days_worked = null;
+  if (type === 'monthly') { monthly_rate = parseFloat(document.getElementById('lb_mrate').value)||0; total = monthly_rate; }
+  else { daily_rate = parseFloat(document.getElementById('lb_drate').value)||0; days_worked = parseInt(document.getElementById('lb_days').value)||0; total = daily_rate*days_worked; }
+  await sb.from('mm_labour_costs').insert({ period_month: month, period_year: year, staff_name: name, pay_type: type, monthly_rate, daily_rate, days_worked, total_pay: total, recorded_by: currentUser.id });
+  showToast('Kos buruh disimpan!', 'success');
+  closeModal(); loadCosting();
+}
+
+// ======== SETUP ========
+async function renderSetup() {
+  if (currentUser.role !== 'owner') return;
+  const c = document.getElementById('mainContent');
+  const { data: users } = await sb.from('mm_users').select('*').order('name');
+  c.innerHTML = `
+    <div class="page-header"><h1>Setup</h1><p>Pengurusan pengguna</p></div>
+    <div class="card">
+      <div class="section-header"><h3>👥 Pengguna</h3><button class="btn btn-sm btn-pink" onclick="openAddUserModal()">+ Tambah</button></div>
+      ${(users||[]).map(u=>`
+        <div class="setup-item">
+          <div><div class="setup-item-name">${u.name}</div><div class="setup-item-meta">${u.role==='owner'?'👑 Owner':'🔧 Production'} • ${u.active?'Aktif':'Tidak aktif'}</div></div>
+          <button class="btn btn-xs btn-outline" onclick="openEditUserModal('${u.id}','${u.name}','${u.role}',${u.active})">Edit</button>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="card-title">ℹ️ Tentang App</div>
+      <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.6">
+        Mika Mochi Inventory & Costing v2.0<br>
+        Item dalam app: ${allItems.length} item<br>
+        Untuk tambah/edit item: pergi ke Inventori → tap item → Edit
+      </div>
+    </div>`;
+}
+
+function openAddUserModal() {
+  showModal('Tambah Pengguna', `
+    <div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="nu_name" placeholder="e.g. Nani"></div>
+    <div class="form-group"><label class="form-label">Role</label>
+      <select class="form-select" id="nu_role"><option value="owner">Owner</option><option value="production">Production</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">PIN (4-6 digit)</label><input class="form-input" id="nu_pin" type="password" placeholder="••••" maxlength="6" inputmode="numeric"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveNewUser()">Simpan</button>
+    </div>`);
+}
+
+async function saveNewUser() {
+  const name = document.getElementById('nu_name').value.trim();
+  const role = document.getElementById('nu_role').value;
+  const pin = document.getElementById('nu_pin').value;
+  if (!name || pin.length < 4) return showToast('Nama & PIN min 4 digit wajib', 'error');
+  const { error } = await sb.from('mm_users').insert({ name, role, pin });
+  if (error) return showToast('Gagal simpan', 'error');
+  showToast('Pengguna ditambah!', 'success');
+  closeModal(); renderSetup();
+}
+
+function openEditUserModal(id, name, role, active) {
+  showModal('Edit Pengguna', `
+    <div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="eu_name" value="${name}"></div>
+    <div class="form-group"><label class="form-label">Role</label>
+      <select class="form-select" id="eu_role"><option value="owner" ${role==='owner'?'selected':''}>Owner</option><option value="production" ${role==='production'?'selected':''}>Production</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">PIN Baru (kosong = tak tukar)</label><input class="form-input" id="eu_pin" type="password" placeholder="••••" maxlength="6" inputmode="numeric"></div>
+    <div class="form-group"><label class="form-label">Status</label>
+      <select class="form-select" id="eu_active"><option value="true" ${active?'selected':''}>Aktif</option><option value="false" ${!active?'selected':''}>Tidak Aktif</option></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-pink" onclick="saveEditUser('${id}')">Simpan</button>
+    </div>`);
+}
+
+async function saveEditUser(id) {
+  const name = document.getElementById('eu_name').value.trim();
+  const role = document.getElementById('eu_role').value;
+  const pin = document.getElementById('eu_pin').value;
+  const active = document.getElementById('eu_active').value === 'true';
+  const updates = { name, role, active };
+  if (pin && pin.length >= 4) updates.pin = pin;
+  const { error } = await sb.from('mm_users').update(updates).eq('id', id);
+  if (error) return showToast('Gagal simpan', 'error');
+  showToast('Pengguna dikemaskini!', 'success');
+  closeModal(); renderSetup();
+}
+
+// ======== MODAL ========
+function showModal(title, body) {
+  document.getElementById('modalContent').innerHTML = `<div class="modal-title"><span>${title}</span><button class="modal-close" onclick="closeModal()">✕</button></div>${body}`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalBg(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+// ======== FAB ========
+function showFab(fn) {
+  let fab = document.getElementById('mainFab');
+  if (!fab) { fab = document.createElement('button'); fab.id = 'mainFab'; fab.className = 'fab'; fab.innerHTML = '+'; document.body.appendChild(fab); }
+  fab.style.display = 'flex'; fab.onclick = fn;
+}
+function hideFab() { const f = document.getElementById('mainFab'); if (f) f.style.display = 'none'; }
+
+// ======== TOAST ========
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+</script>
+</body>
+</html>
