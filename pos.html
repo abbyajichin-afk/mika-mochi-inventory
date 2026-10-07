@@ -162,7 +162,7 @@ button{font-family:inherit;cursor:pointer}
 .pay-total{text-align:center;padding:12px 0 16px}
 .pay-total .l{font-size:0.8rem;font-weight:700;color:var(--muted)}
 .pay-total .v{font-size:2.6rem;font-weight:800;color:var(--pink-dark)}
-.method-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.method-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
 .method{border:2px solid var(--border);background:#fff;border-radius:var(--rs);padding:16px 8px;font-weight:800;font-size:0.95rem;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text)}
 .method .ic{font-size:1.6rem}
 .method.active{border-color:var(--pink);background:var(--pink-pale);color:var(--pink-dark)}
@@ -248,11 +248,13 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 const ROLE_LABELS={owner:'Owner',manager:'Manager',supervisor:'Supervisor',staff:'Staff'};
-const PAY_LABELS={cash:'Tunai',duitnow:'DuitNow QR',ewallet:'E-Wallet'};
+const PAY_LABELS={cash:'Tunai',duitnow:'QR (DuitNow / E-Wallet)',ewallet:'E-Wallet'};
+const PAY_KEYS=['cash','duitnow'];
 const WALLETS=['Touch \'n Go','GrabPay','ShopeePay','Boost','Lain-lain'];
 const LAIN_CATS={minuman:'Minuman',lain:'Lain-lain'};
 const DEFAULT_SETTINGS={shop_name:'Mika Mochi',shop_address:'',shop_phone:'',receipt_footer:'Terima kasih! Jumpa lagi :)',daifuku_price:5,bites_price:15,duitnow_qr:'',paper:58,pos_booth_id:'',pos_staff:[]};
-const FALLBACK_BITES=['Red Velvet','Tiramisu','Strawberry','Sea Salt','Matcha','Strawberry Matcha','Chocolate Strawberry','Chocolate','Ube Dream','Durian'];
+// Same default Bites list as Internal App (used when mm_flavours has no bites rows)
+const FALLBACK_BITES=['Red Velvet','Tiramisu','Strawberry','Sea Salt','Matcha','Strawberry Matcha','Chocolate Strawberry','Chocolate'];
 
 // ===================== STATE =====================
 let user=null,selUser=null,pin='';
@@ -330,10 +332,12 @@ async function loadMenu(){
       sb.from('mm_pos_settings').select('*')
     ]);
     const off={};(st.data||[]).forEach(r=>{if(r.active===false)off[r.flavour_type+'|'+r.flavour_name]=1;});
-    if(fl.data&&fl.data.length){
-      menu.daifuku=fl.data.filter(f=>f.type==='daifuku'&&!off['daifuku|'+f.name]).map(f=>f.name);
-      menu.bites=fl.data.filter(f=>f.type==='bites'&&!off['bites|'+f.name]).map(f=>f.name);
-    }else if(!menu.bites.length){menu.bites=FALLBACK_BITES.slice();}
+    if(!fl.error){
+      const all=fl.data||[];
+      const d=all.filter(f=>f.type==='daifuku');const b=all.filter(f=>f.type==='bites');
+      if(d.length)menu.daifuku=d.filter(f=>!off['daifuku|'+f.name]).map(f=>f.name);
+      menu.bites=(b.length?b.map(f=>f.name):FALLBACK_BITES).filter(n=>!off['bites|'+n]);
+    }
     if(!it.error)menu.lain=(it.data||[]).filter(i=>i.active!==false).map(i=>({id:i.id,name:i.name,price:+i.price||0,category:i.category||'lain'}));
     if(!se.error){const s={};(se.data||[]).forEach(r=>s[r.key]=r.value);settings={...DEFAULT_SETTINGS,...s};}
     if(it.error||se.error)toast('Table POS belum ada — run SQL dulu','error');
@@ -448,7 +452,7 @@ function drawPay(){
     <div class="quick">${notes.map((v,i)=>`<button onclick="setRec(${v})">${i===0?'Tepat':'RM'+v}</button>`).join('')}<button onclick="setRec('')">Clear</button></div>
     <div class="change-box" id="chgBox">${chgHtml(chg)}</div>`;
   }else if(m==='duitnow'){
-    body=settings.duitnow_qr?`<div class="qr-box"><img src="${settings.duitnow_qr}" alt="DuitNow QR"><p class="note">Tunjuk QR pada pelanggan. Tekan "Dah Terima" bila nampak notifikasi bayaran masuk.</p></div>`
+    body=settings.duitnow_qr?`<div class="qr-box"><img src="${settings.duitnow_qr}" alt="DuitNow QR"><p class="note">Pelanggan boleh scan guna app bank atau e-wallet (TNG, GrabPay, ShopeePay, Boost). Tekan "Dah Terima" bila nampak notifikasi bayaran masuk.</p></div>`
       :`<div class="change-box"><b>QR belum dimuat naik.</b><p class="note">${isMgr()?'Pergi Tetapan → DuitNow QR untuk upload gambar QR kedai.':'Minta owner upload QR di Tetapan.'} Boleh guna QR fizikal di kaunter dulu.</p></div>`;
   }else{
     body=`<label class="label">E-Wallet</label><div class="wallets">${WALLETS.map(w=>`<button class="method ${pay.wallet===w?'active':''}" style="padding:12px" onclick="pay.wallet='${w.replace(/'/g,"\\'")}';drawPay()">${esc(w)}</button>`).join('')}</div>`;
@@ -457,8 +461,7 @@ function drawPay(){
   <div class="pay-total"><div class="l">JUMLAH${T.discount>0?' (selepas diskaun '+rm(T.discount)+')':''}</div><div class="v">${rm(T.total)}</div></div>
   <div class="method-grid">
     <button class="method ${m==='cash'?'active':''}" onclick="pay.method='cash';drawPay()"><span class="ic">💵</span>Tunai</button>
-    <button class="method ${m==='duitnow'?'active':''}" onclick="pay.method='duitnow';drawPay()"><span class="ic">🔳</span>DuitNow QR</button>
-    <button class="method ${m==='ewallet'?'active':''}" onclick="pay.method='ewallet';drawPay()"><span class="ic">📱</span>E-Wallet</button>
+    <button class="method ${m==='duitnow'?'active':''}" onclick="pay.method='duitnow';drawPay()"><span class="ic">🔳</span>QR<span style="font-size:.72rem;font-weight:600;color:var(--muted)">DuitNow / TNG / Grab / Shopee</span></button>
   </div>
   ${body}
   <div class="btn-row"><button class="btn outline" onclick="closeModal()">Batal</button><button class="btn green" id="confirmPay" onclick="confirmPay()" ${payReady()?'':'disabled'}>${m==='cash'?'Selesai':'Dah Terima ✓'}</button></div>`,true);
@@ -540,6 +543,7 @@ function updateNet(){
 window.addEventListener('online',()=>{netState='ok';flushQueue();});
 window.addEventListener('offline',()=>{netState='off';updateNet();});
 setInterval(flushQueue,30000);
+setInterval(()=>{if(user)loadMenu().then(()=>{if(curView==='sell')drawGrid();});},5*60*1000);
 
 // ===================== STOCK =====================
 let stock={date:null,row:null,receipts:[]};
@@ -688,7 +692,7 @@ async function renderClose(){
   h+=`<div class="stat-grid"><div class="stat hero"><div class="v">${rm(R.total)}</div><div class="l">Jumlah Jualan</div></div><div class="stat"><div class="v">${R.count}</div><div class="l">Transaksi</div></div><div class="stat"><div class="v">${R.dQty}</div><div class="l">Daifuku (pcs)</div></div><div class="stat"><div class="v">${R.bQty}</div><div class="l">Mochi Bites (pack)</div></div></div>
   ${stockCloseHtml()}
   <div class="row"><div class="card"><div class="card-title">Ikut Bayaran</div>
-  ${['cash','duitnow','ewallet'].map(k=>`<div class="line"><span>${PAY_LABELS[k]}</span><b>${rm(R.byPay[k]||0)}</b></div>`).join('')}
+  ${[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>`<div class="line"><span>${PAY_LABELS[k]}</span><b>${rm(R.byPay[k]||0)}</b></div>`).join('')}
   ${Object.keys(R.byWallet).length?`<p class="note">${Object.entries(R.byWallet).map(([w,v])=>esc(w)+': '+rm(v)).join(' · ')}</p>`:''}
   ${R.discount>0?`<div class="line"><span>Diskaun diberi</span><b>${rm(R.discount)}</b></div>`:''}
   ${R.voidCount?`<div class="line"><span>Void</span><b>${R.voidCount} (${rm(R.voidAmt)})</b></div>`:''}
@@ -910,7 +914,7 @@ function receiptLines(s){
   L.push({t:padLR('Subtotal',(+s.subtotal).toFixed(2))});
   if(+s.discount>0)L.push({t:padLR('Diskaun','-'+(+s.discount).toFixed(2))});
   L.push({t:padLR('JUMLAH','RM '+(+s.total).toFixed(2),Math.floor(W()/2)),big:1,b:1});
-  L.push({t:padLR('Bayaran',(PAY_LABELS[s.payment_method]||s.payment_method)+(s.payment_detail?' ('+s.payment_detail+')':''))});
+  L.push({t:padLR('Bayaran',s.payment_method==='duitnow'?'QR':(PAY_LABELS[s.payment_method]||s.payment_method)+(s.payment_detail?' ('+s.payment_detail+')':''))});
   if(s.payment_method==='cash'&&s.cash_received!=null){L.push({t:padLR('Tunai',(+s.cash_received).toFixed(2))});L.push({t:padLR('Baki',(+s.change_given).toFixed(2))});}
   L.push({t:dash()});
   if(settings.receipt_footer)wrap(settings.receipt_footer).forEach(x=>L.push({t:x,c:1}));
@@ -1025,7 +1029,7 @@ function printSummary(){
   const R=window._closeSum;if(!R)return;const c=cashCalc();
   const L=[{t:settings.shop_name||'Mika Mochi',big:1,c:1,b:1},{t:'LAPORAN TUTUP KEDAI',c:1,b:1},{t:closeDate,c:1},{t:dash()},
     {t:padLR('Transaksi',String(R.count))},{t:padLR('Daifuku (pcs)',String(R.dQty))},{t:padLR('Mochi Bites',String(R.bQty))},{t:padLR('Lain-lain',String(R.lQty))},{t:dash()},
-    ...['cash','duitnow','ewallet'].map(k=>({t:padLR(PAY_LABELS[k],(R.byPay[k]||0).toFixed(2))})),
+    ...[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>({t:padLR(k==='duitnow'?'QR':PAY_LABELS[k],(R.byPay[k]||0).toFixed(2))})),
     ...(R.discount>0?[{t:padLR('Diskaun',R.discount.toFixed(2))}]:[]),
     ...(R.voidCount?[{t:padLR('Void ('+R.voidCount+')',R.voidAmt.toFixed(2))}]:[]),
     {t:padLR('JUMLAH','RM '+R.total.toFixed(2),Math.floor(W()/2)),big:1,b:1},{t:dash()},
@@ -1041,7 +1045,7 @@ function printSummary(){
 function toggleFullscreen(){if(!document.fullscreenElement)document.documentElement.requestFullscreen?.().catch(()=>{});else document.exitFullscreen?.();}
 let wakeLock=null;
 async function requestWake(){try{if('wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&user){requestWake();flushQueue();loadStock().then(()=>{if(curView==='sell')drawGrid();});}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&user){requestWake();flushQueue();Promise.all([loadMenu(),loadStock()]).then(()=>{if(curView==='sell')drawGrid();});}});
 
 // ===================== BOOT =====================
 buildKeypad();
