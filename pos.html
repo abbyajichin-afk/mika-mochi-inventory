@@ -251,7 +251,7 @@ const ROLE_LABELS={owner:'Owner',manager:'Manager',supervisor:'Supervisor',staff
 const PAY_LABELS={cash:'Tunai',duitnow:'DuitNow QR',ewallet:'E-Wallet'};
 const WALLETS=['Touch \'n Go','GrabPay','ShopeePay','Boost','Lain-lain'];
 const LAIN_CATS={minuman:'Minuman',lain:'Lain-lain'};
-const DEFAULT_SETTINGS={shop_name:'Mika Mochi',shop_address:'',shop_phone:'',receipt_footer:'Terima kasih! Jumpa lagi :)',daifuku_price:5,bites_price:15,duitnow_qr:'',paper:58,pos_booth_id:''};
+const DEFAULT_SETTINGS={shop_name:'Mika Mochi',shop_address:'',shop_phone:'',receipt_footer:'Terima kasih! Jumpa lagi :)',daifuku_price:5,bites_price:15,duitnow_qr:'',paper:58,pos_booth_id:'',pos_staff:[]};
 const FALLBACK_BITES=['Red Velvet','Tiramisu','Strawberry','Sea Salt','Matcha','Strawberry Matcha','Chocolate Strawberry','Chocolate','Ube Dream','Durian'];
 
 // ===================== STATE =====================
@@ -282,9 +282,12 @@ function lockModal(){const o=document.querySelector('.overlay');if(o)o.dataset.l
 // ===================== LOGIN =====================
 async function loadUsers(){
   const g=$('userGrid');
-  const {data,error}=await sb.from('mm_users').select('id,name,role').eq('active',true).order('name');
+  const [{data,error},st]=await Promise.all([sb.from('mm_users').select('id,name,role,access_override').eq('active',true).order('name'),sb.from('mm_pos_settings').select('value').eq('key','pos_staff').maybeSingle()]);
   let list=data;
-  if(error||!data){list=lsGet('mm_pos_users_cache',[]);}else lsSet('mm_pos_users_cache',data);
+  if(error||!data){list=lsGet('mm_pos_users_cache',[]);}
+  else{const allowed=(st&&st.data&&Array.isArray(st.data.value))?st.data.value.map(String):[];
+    if(allowed.length)list=data.filter(u=>allowed.includes(String(u.id))||['owner','manager'].includes(u.role));
+    lsSet('mm_pos_users_cache',list);}
   if(!list.length){g.innerHTML='<div class="muted">Tiada pengguna / tiada internet.</div>';return;}
   g.innerHTML=list.map(u=>`<button class="user-btn" data-id="${esc(u.id)}" onclick="pickUser(this)"><b>${esc(u.name)}</b><span>${esc(ROLE_LABELS[u.role]||u.role)}</span></button>`).join('');
 }
@@ -798,11 +801,18 @@ async function renderSettings(){
       <div class="btn-row"><button class="btn outline" onclick="testPrint()">Test Print</button></div>`:''}
   </div></div>
 
+  <div class="card"><div class="card-title">Staff POS</div>
+    <p class="note" style="margin:-4px 0 10px">Tanda staff cafe yang boleh login POS. Owner & Manager sentiasa boleh. Kalau tiada yang ditanda, semua staff keluar.</p>
+    <div id="staffList" class="stk-grid"><div class="muted">Loading...</div></div>
+    <div class="btn-row"><button class="btn" onclick="savePosStaff()">Simpan Staff POS</button></div>
+    <p class="note">Staff cafe baru? Tambah dulu dalam Internal App → Setup (role Staff), kemudian tanda di sini.</p>
+  </div>
+
   <div class="card"><div class="card-title">Item Lain (minuman, add-on, box) <button class="btn sm" onclick="editItem()">+ Tambah</button></div>
     <div id="itemList"><div class="muted">Loading...</div></div>
   </div>
   </div></div>`;
-  loadItemList();loadBoothOptions();
+  loadItemList();loadBoothOptions();loadStaffList();
 }
 async function saveSettings(){
   const ns={pos_booth_id:$('st_booth')?.value||'',daifuku_price:parseFloat($('st_dp').value)||0,bites_price:parseFloat($('st_bp').value)||0,shop_name:$('st_name').value.trim()||'Mika Mochi',shop_address:$('st_addr').value.trim(),shop_phone:$('st_phone').value.trim(),receipt_footer:$('st_foot').value.trim(),paper:parseInt($('st_paper').value)||58};
@@ -832,6 +842,19 @@ async function loadBoothOptions(){
   let bs=[{id:'booth_setia_alam',name:'Booth Setia Alam'},{id:'booth_tour',name:'Booth Tour'}];
   if(data&&data.notes){try{bs=JSON.parse(data.notes);}catch(e){}}
   sel.innerHTML='<option value="">— Pilih —</option>'+bs.map(b=>`<option value="${esc(b.id)}" ${settings.pos_booth_id===b.id?'selected':''}>${esc(b.name)}</option>`).join('');
+}
+async function loadStaffList(){
+  const el=$('staffList');if(!el)return;
+  const {data,error}=await sb.from('mm_users').select('id,name,role').eq('active',true).order('name');
+  if(error){el.innerHTML=`<p class="note" style="color:var(--red)">${esc(error.message)}</p>`;return;}
+  const sel=(settings.pos_staff||[]).map(String);
+  el.innerHTML=(data||[]).map(u=>{const always=['owner','manager'].includes(u.role);return`<label class="stk-row" style="cursor:pointer"><span class="n">${esc(u.name)}<div class="o">${esc(ROLE_LABELS[u.role]||u.role)}${always?' · sentiasa boleh':''}</div></span><input type="checkbox" class="pos-staff-cb" value="${esc(u.id)}" ${always?'checked disabled':sel.includes(String(u.id))?'checked':''} style="width:22px;height:22px;accent-color:var(--pink)"></label>`;}).join('');
+}
+async function savePosStaff(){
+  const ids=[...document.querySelectorAll('.pos-staff-cb:not(:disabled):checked')].map(c=>c.value);
+  const {error}=await sb.from('mm_pos_settings').upsert({key:'pos_staff',value:ids,updated_at:new Date().toISOString()},{onConflict:'key'});
+  if(error)return toast('Gagal: '+error.message,'error');
+  settings.pos_staff=ids;lsSet('mm_pos_menu_cache',{menu,settings});toast('Staff POS disimpan ✓','success');
 }
 let _items=[];
 async function loadItemList(){
