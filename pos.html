@@ -162,7 +162,7 @@ button{font-family:inherit;cursor:pointer}
 .pay-total{text-align:center;padding:12px 0 16px}
 .pay-total .l{font-size:0.8rem;font-weight:700;color:var(--muted)}
 .pay-total .v{font-size:2.6rem;font-weight:800;color:var(--pink-dark)}
-.method-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.method-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .method{border:2px solid var(--border);background:#fff;border-radius:var(--rs);padding:16px 8px;font-weight:800;font-size:0.95rem;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text)}
 .method .ic{font-size:1.6rem}
 .method.active{border-color:var(--pink);background:var(--pink-pale);color:var(--pink-dark)}
@@ -248,8 +248,10 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 const ROLE_LABELS={owner:'Owner',manager:'Manager',supervisor:'Supervisor',staff:'Staff'};
-const PAY_LABELS={cash:'Cash',duitnow:'QR (DuitNow / E-Wallet)',ewallet:'E-Wallet'};
+const PAY_LABELS={cash:'Cash',duitnow:'QR (DuitNow / E-Wallet)',split:'Cash + QR',ewallet:'E-Wallet'};
 const PAY_KEYS=['cash','duitnow'];
+// split sale: cash part + QR part (QR part = total - cash_received)
+function payParts(s){const t=+s.total||0;if(s.payment_method==='split'){const c=r2(s.cash_received||0);return{cash:c,duitnow:r2(t-c)};}return{[s.payment_method]:t};}
 const WALLETS=['Touch \'n Go','GrabPay','ShopeePay','Boost','Other'];
 const LAIN_CATS={minuman:'Drinks',lain:'Other'};
 const DEFAULT_SETTINGS={shop_name:'Mika Mochi',shop_address:'',shop_phone:'',receipt_footer:'Thank you! See you again :)',daifuku_price:5,bites_price:15,duitnow_qr:'',paper:58,pos_booth_id:'',pos_staff:[]};
@@ -455,6 +457,14 @@ function drawPay(){
   }else if(m==='duitnow'){
     body=settings.duitnow_qr?`<div class="qr-box"><img src="${settings.duitnow_qr}" alt="DuitNow QR"><p class="note">Customers can scan with any banking or e-wallet app (TNG, GrabPay, ShopeePay, Boost). Tap "Received" once you see the payment notification.</p></div>`
       :`<div class="change-box"><b>QR not uploaded yet.</b><p class="note">${isMgr()?'Go to Settings → DuitNow QR to upload the shop QR image.':'Ask the owner to upload the QR in Settings.'} You can use the printed QR at the counter for now.</p></div>`;
+  }else if(m==='split'){
+    const c=parseFloat(pay.received);const ok=!isNaN(c)&&c>0&&r2(c)<T.total;const q=ok?r2(T.total-c):null;
+    body=`<label class="label">Cash portion (RM)</label>
+    <input class="input big-input" id="recIn" type="number" inputmode="decimal" step="0.01" placeholder="0.00" value="${esc(pay.received)}" oninput="pay.received=this.value;updSplit()">
+    <div class="quick" style="grid-template-columns:repeat(4,1fr)">${[5,10,20,50].filter(v=>v<T.total).map(v=>`<button onclick="pay.received='${v}';$('recIn').value='${v}';updSplit()">RM${v}</button>`).join('')}</div>
+    <div class="change-box" id="splitBox">${splitHtml(q)}</div>
+    ${settings.duitnow_qr?`<div class="qr-box" style="margin-top:10px"><img src="${settings.duitnow_qr}" alt="DuitNow QR" style="width:min(220px,50vw)"></div>`:''}
+    <p class="note">Take the cash first, then let the customer scan the QR for the balance. Tap "Received" once the QR payment comes in.</p>`;
   }else{
     body=`<label class="label">E-Wallet</label><div class="wallets">${WALLETS.map(w=>`<button class="method ${pay.wallet===w?'active':''}" style="padding:12px" onclick="pay.wallet='${w.replace(/'/g,"\\'")}';drawPay()">${esc(w)}</button>`).join('')}</div>`;
   }
@@ -463,22 +473,25 @@ function drawPay(){
   <div class="method-grid">
     <button class="method ${m==='cash'?'active':''}" onclick="pay.method='cash';drawPay()"><span class="ic">💵</span>Cash</button>
     <button class="method ${m==='duitnow'?'active':''}" onclick="pay.method='duitnow';drawPay()"><span class="ic">🔳</span>QR<span style="font-size:.72rem;font-weight:600;color:var(--muted)">DuitNow / TNG / Grab / Shopee</span></button>
+    <button class="method ${m==='split'?'active':''}" onclick="pay.method='split';pay.received='';drawPay()"><span class="ic">💵+🔳</span>Cash + QR<span style="font-size:.72rem;font-weight:600;color:var(--muted)">Split payment</span></button>
   </div>
   ${body}
   <div class="btn-row"><button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn green" id="confirmPay" onclick="confirmPay()" ${payReady()?'':'disabled'}>${m==='cash'?'Complete':'Received ✓'}</button></div>`,true);
-  if(m==='cash')setTimeout(()=>$('recIn')?.focus(),50);
+  if(m==='cash'||m==='split')setTimeout(()=>$('recIn')?.focus(),50);
 }
 function chgHtml(chg){if(chg===null)return'<div class="muted" style="font-weight:700">Enter amount received</div>';if(chg<0)return`<div class="l muted" style="font-weight:700">SHORT</div><div class="v" style="color:var(--red)">${rm(-chg)}</div>`;return`<div class="l muted" style="font-weight:700">CHANGE</div><div class="v" style="color:var(--green-dark)">${rm(chg)}</div>`;}
+function splitHtml(q){if(q===null)return'<div class="muted" style="font-weight:700">Enter the cash amount (less than the total)</div>';return`<div class="l muted" style="font-weight:700">QR BALANCE TO SCAN</div><div class="v" style="color:var(--pink-dark)">${rm(q)}</div>`;}
+function updSplit(){const T=cartTotals();const c=parseFloat(pay.received);const ok=!isNaN(c)&&c>0&&r2(c)<T.total;$('splitBox').innerHTML=splitHtml(ok?r2(T.total-c):null);const b=$('confirmPay');if(b)b.disabled=!payReady();}
 function setRec(v){pay.received=String(v);const i=$('recIn');if(i)i.value=pay.received;updChange();}
 function updChange(){const T=cartTotals();const rec=parseFloat(pay.received);$('chgBox').innerHTML=chgHtml(isNaN(rec)?null:r2(rec-T.total));const b=$('confirmPay');if(b)b.disabled=!payReady();}
-function payReady(){const T=cartTotals();if(pay.method==='cash'){const r=parseFloat(pay.received);return !isNaN(r)&&r2(r)>=T.total;}if(pay.method==='ewallet')return !!pay.wallet;return true;}
+function payReady(){const T=cartTotals();if(pay.method==='cash'){const r=parseFloat(pay.received);return !isNaN(r)&&r2(r)>=T.total;}if(pay.method==='split'){const c=parseFloat(pay.received);return !isNaN(c)&&c>0&&r2(c)<T.total;}if(pay.method==='ewallet')return !!pay.wallet;return true;}
 
 let lastSale=null;
 async function confirmPay(){
   if(!payReady())return;
   const b=$('confirmPay');if(b){b.disabled=true;b.textContent='Saving...';}
   const T=cartTotals();const now=new Date();
-  const rec=pay.method==='cash'?r2(pay.received):null;
+  const rec=(pay.method==='cash'||pay.method==='split')?r2(pay.received):null;
   const sale={
     client_id:uid(),
     receipt_no:nextReceiptNo(now),
@@ -488,7 +501,7 @@ async function confirmPay(){
     subtotal:T.subtotal,discount:T.discount,total:T.total,
     payment_method:pay.method,
     payment_detail:pay.method==='ewallet'?pay.wallet:null,
-    cash_received:rec,change_given:rec!==null?r2(rec-T.total):null,
+    cash_received:rec,change_given:pay.method==='cash'?r2(rec-T.total):(pay.method==='split'?0:null),
     staff_id:String(user.id),staff_name:user.name,voided:false
   };
   queueSale(sale);
@@ -506,6 +519,7 @@ function showDone(sale){
   <div style="font-weight:800;font-size:1.1rem">Sale recorded · ${esc(sale.receipt_no)}</div>
   <div class="muted" style="margin:4px 0 14px">${rm(sale.total)} · ${esc(PAY_LABELS[sale.payment_method])}${sale.payment_detail?' ('+esc(sale.payment_detail)+')':''}</div>
   ${sale.payment_method==='cash'?`<div class="muted" style="font-weight:700">CHANGE</div><div class="chg">${rm(sale.change_given)}</div>`:''}
+  ${sale.payment_method==='split'?`<div class="muted" style="font-weight:700">Cash ${rm(sale.cash_received)} · QR ${rm(sale.total-sale.cash_received)}</div>`:''}
   </div>
   <div class="btn-row"><button class="btn outline" onclick="printReceipt(lastSale)">🖨️ ${autoPrintOn()?'Reprint':'Print Receipt'}</button><button class="btn green" onclick="closeModal();renderSell()">New Sale →</button></div>`);
 }
@@ -702,6 +716,7 @@ async function renderClose(){
   ${stockCloseHtml()}
   <div class="row"><div class="card"><div class="card-title">By Payment</div>
   ${[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>`<div class="line"><span>${PAY_LABELS[k]}</span><b>${rm(R.byPay[k]||0)}</b></div>`).join('')}
+  ${R.splitCount?`<p class="note">Includes ${R.splitCount} Cash + QR split payment(s), counted in each line above.</p>`:''}
   ${Object.keys(R.byWallet).length?`<p class="note">${Object.entries(R.byWallet).map(([w,v])=>esc(w)+': '+rm(v)).join(' · ')}</p>`:''}
   ${R.discount>0?`<div class="line"><span>Discounts given</span><b>${rm(R.discount)}</b></div>`:''}
   ${R.voidCount?`<div class="line"><span>Voided</span><b>${R.voidCount} (${rm(R.voidAmt)})</b></div>`:''}
@@ -752,7 +767,7 @@ function summarize(list){
     if(s._pending)R.pending++;
     if(s.voided){R.voidCount++;R.voidAmt+=+s.total||0;return;}
     R.count++;R.total+=+s.total||0;R.discount+=+s.discount||0;
-    R.byPay[s.payment_method]=(R.byPay[s.payment_method]||0)+(+s.total||0);
+    Object.entries(payParts(s)).forEach(([k,v])=>{R.byPay[k]=(R.byPay[k]||0)+v;});if(s.payment_method==='split')R.splitCount=(R.splitCount||0)+1;
     if(s.payment_method==='ewallet'&&s.payment_detail)R.byWallet[s.payment_detail]=(R.byWallet[s.payment_detail]||0)+(+s.total||0);
     (s.items||[]).forEach(i=>{const k=i.cat+'|'+i.name;const o=it[k]||(it[k]={name:i.name,cat:i.cat,qty:0,amount:0});o.qty+=i.qty;o.amount+=+i.amount||i.price*i.qty;if(i.cat==='daifuku')R.dQty+=i.qty;else if(i.cat==='bites')R.bQty+=i.qty;else R.lQty+=i.qty;});
   });
@@ -924,6 +939,7 @@ function receiptLines(s){
   if(+s.discount>0)L.push({t:padLR('Discount','-'+(+s.discount).toFixed(2))});
   L.push({t:padLR('TOTAL','RM '+(+s.total).toFixed(2),Math.floor(W()/2)),big:1,b:1});
   L.push({t:padLR('Payment',s.payment_method==='duitnow'?'QR':(PAY_LABELS[s.payment_method]||s.payment_method)+(s.payment_detail?' ('+s.payment_detail+')':''))});
+  if(s.payment_method==='split'){const P=payParts(s);L.push({t:padLR('  Cash',P.cash.toFixed(2))});L.push({t:padLR('  QR',P.duitnow.toFixed(2))});}
   if(s.payment_method==='cash'&&s.cash_received!=null){L.push({t:padLR('Cash',(+s.cash_received).toFixed(2))});L.push({t:padLR('Change',(+s.change_given).toFixed(2))});}
   L.push({t:dash()});
   if(settings.receipt_footer)wrap(settings.receipt_footer).forEach(x=>L.push({t:x,c:1}));
