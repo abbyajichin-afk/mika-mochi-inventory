@@ -405,7 +405,7 @@ function drawGrid(){
 }
 function findTile(key){const [cat]=key.split('|');return tilesFor(cat).find(t=>t.key===key)||[...tilesFor('daifuku'),...tilesFor('bites'),...tilesFor('lain')].find(t=>t.key===key);}
 function addItem(key){
-  if(stockTracking()&&!key.startsWith('lain|')&&stockLeft(key)<=0){toast('⚠️ '+key.split('|')[1]+' is out of stock in the system','error');}
+  if(stockTracking()&&!key.startsWith('lain|')&&stockLeft(key)<=0){toast('⚠️ '+(key.startsWith('bites|')?'Bites Plain':key.split('|')[1])+' is out of stock in the system','error');}
   const ex=cart.find(c=>c.key===key);
   if(ex)ex.qty++;else{const t=findTile(key);if(!t)return;cart.push({key:t.key,name:t.name,cat:t.cat,price:t.price,qty:1});}
   if(navigator.vibrate)navigator.vibrate(12);
@@ -551,7 +551,15 @@ let stock={date:null,row:null,receipts:[]};
 let soldToday={};
 function stockTracking(){return stock.date===dateStr()&&stock.receipts.length>0;}
 function sumReceipts(receipts){const m={};(receipts||[]).forEach(r=>Object.entries(r.items||{}).forEach(([k,q])=>{m[k]=(m[k]||0)+(+q||0);}));return m;}
-function stockLeft(key){const rec=sumReceipts(stock.receipts);const inCart=(cart.find(c=>c.key===key)||{}).qty||0;return (rec[key]||0)-(soldToday[key]||0)-inCart;}
+// Bites arrive as plain packs; flavour is added at the shop, so all Bites share one plain stock.
+const PLAIN='bites|__plain__';
+function keyName(k){return k===PLAIN?'Bites Plain':k.split('|')[1];}
+function plainize(m){const o={};Object.entries(m||{}).forEach(([k,q])=>{const kk=k.startsWith('bites|')?PLAIN:k;o[kk]=(o[kk]||0)+(+q||0);});return o;}
+function stockLeft(key){
+  const rec=plainize(sumReceipts(stock.receipts));const sold=plainize(soldToday);
+  const kk=key.startsWith('bites|')?PLAIN:key;
+  const inCart=cart.filter(c=>(c.key.startsWith('bites|')?PLAIN:c.key)===kk).reduce((a,c)=>a+c.qty,0);
+  return (rec[kk]||0)-(sold[kk]||0)-inCart;}
 function soldMap(list){const m={};list.filter(s=>!s.voided).forEach(s=>(s.items||[]).forEach(i=>{m[i.key]=(m[i.key]||0)+i.qty;}));return m;}
 async function loadStock(){
   const d=dateStr();
@@ -577,7 +585,7 @@ async function loadKedaiOrder(d){
   let o;try{o=JSON.parse(data.notes);}catch(e){return {order:null,reason:'noorder'};}
   if(o.offDays&&o.offDays[dk])return {order:{},reason:'offday'};
   const m={};
-  ['daifuku','bites'].forEach(cat=>Object.entries(o[cat]||{}).forEach(([name,days])=>{const q=+((days||{})[dk])||0;if(q>0)m[cat+'|'+name]=q;}));
+  ['daifuku','bites'].forEach(cat=>Object.entries(o[cat]||{}).forEach(([name,days])=>{const q=+((days||{})[dk])||0;if(q>0){const k=cat==='bites'?PLAIN:cat+'|'+name;m[k]=(m[k]||0)+q;}}));
   return {order:m,reason:Object.keys(m).length?'ok':'empty'};
 }
 let stkForm=null,stkOrder=null,stkReason='',stkShowForm=false;
@@ -589,31 +597,31 @@ async function renderStock(){
   stkForm=null;drawStock();
 }
 function stockKeys(){
-  const keys=[...menu.daifuku.map(n=>'daifuku|'+n),...menu.bites.map(n=>'bites|'+n)];
+  const keys=[...menu.daifuku.map(n=>'daifuku|'+n),PLAIN];
   Object.keys(stkOrder||{}).forEach(k=>{if(!keys.includes(k))keys.push(k);});
-  Object.keys(sumReceipts(stock.receipts)).forEach(k=>{if(!keys.includes(k))keys.push(k);});
+  Object.keys(plainize(sumReceipts(stock.receipts))).forEach(k=>{if(!keys.includes(k))keys.push(k);});
   return keys;
 }
 function drawStock(){
   const el=$('stkBody');if(!el)return;
-  const rec=sumReceipts(stock.receipts);const first=!stock.receipts.length;
+  const rec=plainize(sumReceipts(stock.receipts));const soldP=plainize(soldToday);const first=!stock.receipts.length;
   if(!stkForm){stkForm={};if(first)Object.entries(stkOrder||{}).forEach(([k,q])=>stkForm[k]=q);}
   const reasonMsg={nobooth:isMgr()?'Shop booth not selected. Go to Settings → Production Order and pick the shop booth so stock auto-fills.':'Shop booth not set. Ask the owner to set it in Settings.',noorder:'No Production Order for the shop this week. Enter quantities manually.',offday:'Today is marked OFF in the Production Order.',empty:'Shop order for today is empty. Enter manually if stock arrives.',ok:'Quantities below are filled from the Production Order. Correct them if the actual count differs.'};
   let h=`<div class="stat-grid"><div class="stat hero"><div class="v">${new Date(stock.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})}</div><div class="l">Shop Stock In</div></div>
   <div class="stat"><div class="v">${sumCat(rec,'daifuku')}</div><div class="l">Daifuku received (pcs)</div></div>
-  <div class="stat"><div class="v">${sumCat(rec,'bites')}</div><div class="l">Bites received (pack)</div></div>
+  <div class="stat"><div class="v">${sumCat(rec,'bites')}</div><div class="l">Bites plain received (pack)</div></div>
   <div class="stat"><div class="v">${sumCat(stkOrder||{},'daifuku')} / ${sumCat(stkOrder||{},'bites')}</div><div class="l">Production order (pcs / pack)</div></div></div>`;
   if(stock.receipts.length){
     h+=`<div class="card"><div class="card-title">Today's Deliveries ${stkShowForm?'':`<button class="btn sm" onclick="stkShowForm=true;stkForm={};drawStock()">+ Add Stock (another delivery)</button>`}</div>
     ${stock.receipts.map((r,i)=>`<div class="list-item"><div class="li-main"><div class="li-title">Delivery ${i+1} · ${timeStr(new Date(r.at))}</div><div class="li-meta">${esc(r.by||'')} · Daifuku ${sumCat(r.items,'daifuku')} pcs · Bites ${sumCat(r.items,'bites')} pack${r.source==='order'?' · as ordered':''}</div></div>${isMgr()?`<button class="btn sm outline" onclick="deleteReceipt(${i})">Delete</button>`:''}</div>`).join('')}
     <table class="tbl" style="margin-top:10px"><tr><th>Flavour</th><th>Order</th><th>Received</th><th>Sold</th><th>Left</th></tr>
-    ${['daifuku','bites'].map(cat=>{const ks=stockKeys().filter(k=>k.startsWith(cat+'|')&&((rec[k]||0)||(stkOrder[k]||0)||(soldToday[k]||0)));if(!ks.length)return'';return`<tr class="sec"><td colspan="5">${cat==='daifuku'?'Daifuku':'Mochi Bites'}</td></tr>`+ks.map(k=>{const left=(rec[k]||0)-(soldToday[k]||0);return`<tr><td>${esc(k.split('|')[1])}</td><td>${stkOrder[k]||'–'}</td><td><b>${rec[k]||0}</b></td><td>${soldToday[k]||0}</td><td style="font-weight:800;color:${left<0?'var(--red)':left===0?'var(--muted)':'var(--green-dark)'}">${left}</td></tr>`;}).join('');}).join('')}
+    ${['daifuku','bites'].map(cat=>{const ks=stockKeys().filter(k=>k.startsWith(cat+'|')&&((rec[k]||0)||(stkOrder[k]||0)||(soldP[k]||0)));if(!ks.length)return'';return`<tr class="sec"><td colspan="5">${cat==='daifuku'?'Daifuku':'Mochi Bites (plain, all flavours)'}</td></tr>`+ks.map(k=>{const left=(rec[k]||0)-(soldP[k]||0);return`<tr><td>${esc(keyName(k))}</td><td>${stkOrder[k]||'–'}</td><td><b>${rec[k]||0}</b></td><td>${soldP[k]||0}</td><td style="font-weight:800;color:${left<0?'var(--red)':left===0?'var(--muted)':'var(--green-dark)'}">${left}</td></tr>`;}).join('');}).join('')}
     </table></div>`;
   }
   if(stkShowForm){
     h+=`<div class="card"><div class="card-title">${first?'Receive Stock from Production':'Add Stock'}${!first?`<button class="btn sm outline" onclick="stkShowForm=false;drawStock()">Cancel</button>`:''}</div>
     <p class="note" style="margin:-4px 0 12px">${first?esc(reasonMsg[stkReason]||''):'Enter the extra delivery quantities only.'}</p>
-    ${['daifuku','bites'].map(cat=>{const ks=stockKeys().filter(k=>k.startsWith(cat+'|'));if(!ks.length)return'';return`<div style="font-weight:800;color:var(--pink-dark);margin:6px 0">${cat==='daifuku'?'Daifuku (pcs)':'Mochi Bites (pack)'}</div><div class="stk-grid">${ks.map(k=>`<div class="stk-row"><div class="n">${esc(k.split('|')[1])}${first&&stkOrder[k]?`<div class="o">Order: ${stkOrder[k]}</div>`:''}</div><button class="stk-btn" onclick="stkStep('${esc(k).replace(/'/g,"\\'")}',-1)">−</button><input class="stk-in" type="number" inputmode="numeric" min="0" data-k="${esc(k)}" value="${stkForm[k]||''}" placeholder="0" oninput="stkForm[this.dataset.k]=Math.max(0,parseInt(this.value)||0);stkTotals()"><button class="stk-btn" onclick="stkStep('${esc(k).replace(/'/g,"\\'")}',1)">+</button></div>`).join('')}</div>`;}).join('')}
+    ${['daifuku','bites'].map(cat=>{const ks=stockKeys().filter(k=>k.startsWith(cat+'|'));if(!ks.length)return'';return`<div style="font-weight:800;color:var(--pink-dark);margin:6px 0">${cat==='daifuku'?'Daifuku (pcs)':'Mochi Bites — plain (pack)'}</div><div class="stk-grid">${ks.map(k=>`<div class="stk-row"><div class="n">${esc(keyName(k))}${first&&stkOrder[k]?`<div class="o">Order: ${stkOrder[k]}</div>`:''}</div><button class="stk-btn" onclick="stkStep('${esc(k).replace(/'/g,"\\'")}',-1)">−</button><input class="stk-in" type="number" inputmode="numeric" min="0" data-k="${esc(k)}" value="${stkForm[k]||''}" placeholder="0" oninput="stkForm[this.dataset.k]=Math.max(0,parseInt(this.value)||0);stkTotals()"><button class="stk-btn" onclick="stkStep('${esc(k).replace(/'/g,"\\'")}',1)">+</button></div>`).join('')}</div>`;}).join('')}
     <div class="line" style="margin-top:12px"><span>Total</span><b id="stkTot"></b></div>
     <div class="btn-row"><button class="btn outline" onclick="stkForm={};drawStock()">Clear</button><button class="btn green" onclick="saveReceipt()">✓ Receive Stock</button></div></div>`;
   }
@@ -711,9 +719,9 @@ async function renderClose(){
 }
 function buildStockClose(row,sold){
   if(!row||!(row.receipts||[]).length)return null;
-  const rec=sumReceipts(row.receipts);const keys=[...new Set([...Object.keys(rec),...Object.keys(sold).filter(k=>!k.startsWith('lain|'))])];
-  const hasSaved=row.discard&&Object.keys(row.discard).length;
-  const rows=keys.map(k=>{const r=rec[k]||0,so=sold[k]||0,left=r-so;return{k,name:k.split('|')[1],cat:k.split('|')[0],rec:r,sold:so,left,buang:hasSaved?(+row.discard[k]||0):Math.max(0,left),makan:hasSaved?(+(row.consume||{})[k]||0):0};});
+  const rec=plainize(sumReceipts(row.receipts));sold=plainize(sold);const keys=[...new Set([...Object.keys(rec),...Object.keys(sold).filter(k=>!k.startsWith('lain|'))])];
+  const hasSaved=row.discard&&Object.keys(row.discard).length;const dis=plainize(row.discard),con=plainize(row.consume);
+  const rows=keys.map(k=>{const r=rec[k]||0,so=sold[k]||0,left=r-so;return{k,name:keyName(k),cat:k.split('|')[0],rec:r,sold:so,left,buang:hasSaved?(dis[k]||0):Math.max(0,left),makan:hasSaved?(con[k]||0):0};});
   rows.sort((a,b)=>a.cat===b.cat?0:a.cat==='daifuku'?-1:1);
   return {row,rows,saved:!!row.closed};
 }
@@ -722,7 +730,7 @@ function stockCloseHtml(){
   if(!S)return `<div class="card"><div class="card-title">Stock & Wastage</div><div class="note">No stock received on this date, so stock is not tracked. Use the Stock In tab when stock arrives.</div></div>`;
   return `<div class="card"><div class="card-title">Stock & Wastage <span class="muted" style="font-size:.75rem;font-weight:600">${S.saved?'✓ saved':'All leftovers are discarded at end of day'}</span></div>
   <div style="overflow-x:auto"><table class="tbl"><tr><th>Flavour</th><th>In</th><th>Sold</th><th>Left</th><th>Discard</th><th>Eaten/<br>Sample</th><th>Diff</th></tr>
-  ${['daifuku','bites'].map(cat=>{const rs=S.rows.filter(r=>r.cat===cat);if(!rs.length)return'';return`<tr class="sec"><td colspan="7">${cat==='daifuku'?'Daifuku (pcs)':'Mochi Bites (pack)'}</td></tr>`+rs.map(r=>{const i=S.rows.indexOf(r);return`<tr><td>${esc(r.name)}</td><td>${r.rec}</td><td>${r.sold}</td><td><b>${r.left}</b></td><td><input type="number" inputmode="numeric" min="0" value="${r.buang}" oninput="window._closeStock.rows[${i}].buang=Math.max(0,parseInt(this.value)||0);updStockClose()"></td><td><input type="number" inputmode="numeric" min="0" value="${r.makan}" oninput="window._closeStock.rows[${i}].makan=Math.max(0,parseInt(this.value)||0);updStockClose()"></td><td id="bz${i}"></td></tr>`;}).join('');}).join('')}
+  ${['daifuku','bites'].map(cat=>{const rs=S.rows.filter(r=>r.cat===cat);if(!rs.length)return'';return`<tr class="sec"><td colspan="7">${cat==='daifuku'?'Daifuku (pcs)':'Mochi Bites — plain (pack)'}</td></tr>`+rs.map(r=>{const i=S.rows.indexOf(r);return`<tr><td>${esc(r.name)}</td><td>${r.rec}</td><td>${r.sold}</td><td><b>${r.left}</b></td><td><input type="number" inputmode="numeric" min="0" value="${r.buang}" oninput="window._closeStock.rows[${i}].buang=Math.max(0,parseInt(this.value)||0);updStockClose()"></td><td><input type="number" inputmode="numeric" min="0" value="${r.makan}" oninput="window._closeStock.rows[${i}].makan=Math.max(0,parseInt(this.value)||0);updStockClose()"></td><td id="bz${i}"></td></tr>`;}).join('');}).join('')}
   </table></div><div id="stkCloseSum" style="margin-top:10px"></div>
   <p class="note">Left = In − Sold. A non-zero Diff means an unrecorded sale or a miscount.</p></div>`;
 }
