@@ -687,13 +687,16 @@ function viewSale(cid){
   const s=(window._hist||[]).find(x=>x.client_id===cid);if(!s)return;
   openModal(`<h2>${esc(s.receipt_no)} <button class="x-btn" onclick="closeModal()">✕</button></h2>
   <div class="receipt-preview">${esc(receiptText(s))}</div>
-  ${s.voided?`<p class="note" style="color:var(--red)">Voided by ${esc(s.voided_by||'-')}: ${esc(s.void_reason||'')}</p>`:''}
-  <div class="btn-row"><button class="btn outline" onclick="printReceipt(${JSON.stringify(cid).replace(/"/g,'&quot;')})">🖨️ Print</button>${isMgr()&&!s.voided&&!s._pending?`<button class="btn red" onclick="voidSale('${esc(s.id)}')">Void Sale</button>`:''}</div>`);
+  ${s.voided?`<p class="note" style="color:var(--red)">Voided by ${esc(s.voided_by||'-')}${s.voided_at?' at '+new Date(s.voided_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}: ${esc(s.void_reason||'')}</p>`:''}
+  <div class="btn-row"><button class="btn outline" onclick="printReceipt(${JSON.stringify(cid).replace(/"/g,'&quot;')})">🖨️ Print</button>${!s.voided&&!s._pending?`<button class="btn red" onclick="voidSale('${esc(s.id)}')">Void Sale</button>`:''}</div>`);
 }
 async function voidSale(id){
   const reason=prompt('Reason for void? (e.g. wrong entry, customer cancelled)');if(reason===null)return;
   if(!reason.trim())return toast('Reason is required','error');
-  const {error}=await sb.from('mm_pos_sales').update({voided:true,void_reason:reason.trim(),voided_by:user.name}).eq('id',id);
+  if(!confirm('Void this sale? This is recorded under your name ('+user.name+').'))return;
+  const base={voided:true,void_reason:reason.trim(),voided_by:user.name};
+  let {error}=await sb.from('mm_pos_sales').update({...base,voided_at:new Date().toISOString()}).eq('id',id);
+  if(error&&/voided_at/.test(error.message||''))({error}=await sb.from('mm_pos_sales').update(base).eq('id',id)); // column not added yet
   if(error)return toast('Failed: '+error.message,'error');
   toast('Sale voided','success');closeModal();renderHistory();loadStock();
 }
@@ -729,6 +732,7 @@ async function renderClose(){
   <div class="btn-row"><button class="btn outline" onclick="printSummary()">🖨️ Print Report</button><button class="btn green" onclick="saveClosing()">${prev?'Update Close Shop':'Save Close Shop'}</button></div>
   ${prev?`<p class="note">Last saved by ${esc(prev.staff_name)} on ${new Date(prev.created_at).toLocaleString('en-GB')}</p>`:''}
   </div></div>
+  ${(R.voids||[]).length?`<div class="card"><div class="card-title">Voided Sales <span class="pill void">${R.voids.length}</span></div>${R.voids.map(v=>`<div class="list-item"><div class="li-main"><div class="li-title">${esc(v.receipt_no)} · ${rm(v.total)}</div><div class="li-meta">Sold ${timeStr(new Date(v.created_at))} by ${esc(v.staff_name||'-')} · Voided by <b>${esc(v.voided_by||'-')}</b>${v.voided_at?' at '+timeStr(new Date(v.voided_at)):''} · ${esc(v.void_reason||'')}</div></div></div>`).join('')}</div>`:''}
   <div class="card"><div class="card-title">Items Sold</div>${!R.items.length?'<div class="empty">None.</div>':R.items.map(i=>`<div class="line"><span>${esc(i.name)} <span class="muted" style="font-size:.75rem">${i.cat==='daifuku'?'Daifuku':i.cat==='bites'?'Bites':'Other'}</span></span><b>${i.qty} · ${rm(i.amount)}</b></div>`).join('')}</div>`;
   $('closeBody').innerHTML=h;updCash();updStockClose();
 }
@@ -765,7 +769,7 @@ function summarize(list){
   const it={};
   list.forEach(s=>{
     if(s._pending)R.pending++;
-    if(s.voided){R.voidCount++;R.voidAmt+=+s.total||0;return;}
+    if(s.voided){R.voidCount++;R.voidAmt+=+s.total||0;(R.voids=R.voids||[]).push(s);return;}
     R.count++;R.total+=+s.total||0;R.discount+=+s.discount||0;
     Object.entries(payParts(s)).forEach(([k,v])=>{R.byPay[k]=(R.byPay[k]||0)+v;});if(s.payment_method==='split')R.splitCount=(R.splitCount||0)+1;
     if(s.payment_method==='ewallet'&&s.payment_detail)R.byWallet[s.payment_detail]=(R.byWallet[s.payment_detail]||0)+(+s.total||0);
@@ -1056,7 +1060,7 @@ function printSummary(){
     {t:padLR('Transactions',String(R.count))},{t:padLR('Daifuku (pcs)',String(R.dQty))},{t:padLR('Mochi Bites',String(R.bQty))},{t:padLR('Other',String(R.lQty))},{t:dash()},
     ...[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>({t:padLR(k==='duitnow'?'QR':PAY_LABELS[k],(R.byPay[k]||0).toFixed(2))})),
     ...(R.discount>0?[{t:padLR('Discount',R.discount.toFixed(2))}]:[]),
-    ...(R.voidCount?[{t:padLR('Void ('+R.voidCount+')',R.voidAmt.toFixed(2))}]:[]),
+    ...(R.voidCount?[{t:padLR('Void ('+R.voidCount+')',R.voidAmt.toFixed(2))},...(R.voids||[]).map(v=>({t:'  '+v.receipt_no+' by '+(v.voided_by||'-')}))]:[]),
     {t:padLR('TOTAL','RM '+R.total.toFixed(2),Math.floor(W()/2)),big:1,b:1},{t:dash()},
     {t:padLR('Float',c.fl.toFixed(2))},{t:padLR('Expected cash',c.expected.toFixed(2))},
     ...(c.cnt!==null?[{t:padLR('Cash counted',c.cnt.toFixed(2))},{t:padLR('Difference',c.diff.toFixed(2)),b:1}]:[]),
