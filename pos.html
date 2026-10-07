@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ms">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#DE8C96">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Mika Mochi — POS Kedai</title>
+<title>Mika Mochi — Shop POS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -205,11 +205,11 @@ button{font-family:inherit;cursor:pointer}
   <div class="login-wrap">
     <div class="login-panel">
       <div class="login-logo">Mika Mochi</div>
-      <div class="login-sub">POS Kedai — pilih nama</div>
+      <div class="login-sub">Shop POS — select your name</div>
       <div class="user-grid" id="userGrid"><div class="muted">Loading...</div></div>
     </div>
     <div class="login-panel" style="max-width:340px">
-      <div class="login-sub" id="pinLabel" style="margin-bottom:10px">Masukkan PIN</div>
+      <div class="login-sub" id="pinLabel" style="margin-bottom:10px">Enter PIN</div>
       <div class="pin-display" id="pinDisplay"></div>
       <div class="keypad" id="keypad"></div>
       <div class="login-error" id="loginError"></div>
@@ -220,19 +220,19 @@ button{font-family:inherit;cursor:pointer}
 <!-- APP -->
 <div id="app" class="hidden">
   <div class="topbar">
-    <div class="brand">Mika Mochi<small>POS Kedai</small></div>
+    <div class="brand">Mika Mochi<small>Shop POS</small></div>
     <div class="tabs" id="tabs">
-      <button class="tab active" data-view="sell" onclick="go('sell')">Jual</button>
-      <button class="tab" data-view="stock" onclick="go('stock')">Stok Masuk</button>
-      <button class="tab" data-view="history" onclick="go('history')">Sejarah</button>
-      <button class="tab" data-view="close" onclick="go('close')">Tutup Kedai</button>
-      <button class="tab mgr-only" data-view="settings" onclick="go('settings')">Tetapan</button>
+      <button class="tab active" data-view="sell" onclick="go('sell')">Sell</button>
+      <button class="tab" data-view="stock" onclick="go('stock')">Stock In</button>
+      <button class="tab" data-view="history" onclick="go('history')">History</button>
+      <button class="tab" data-view="close" onclick="go('close')">Close Shop</button>
+      <button class="tab mgr-only" data-view="settings" onclick="go('settings')">Settings</button>
     </div>
     <div class="top-right">
-      <div class="chip" id="netChip" title="Sambungan"><span class="dot" id="netDot"></span><span class="lbl" id="netLbl">Online</span></div>
+      <div class="chip" id="netChip" title="Connection"><span class="dot" id="netDot"></span><span class="lbl" id="netLbl">Online</span></div>
       <button class="chip" id="printerChip" onclick="printerChipTap()"><span class="dot" id="prDot"></span><span class="lbl" id="prLbl">Printer</span></button>
-      <button class="icon-btn" onclick="toggleFullscreen()" title="Skrin penuh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-      <button class="chip" onclick="logout()"><span id="userLbl">—</span> · Keluar</button>
+      <button class="icon-btn" onclick="toggleFullscreen()" title="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+      <button class="chip" onclick="logout()"><span id="userLbl">—</span> · Log out</button>
     </div>
   </div>
   <div class="view" id="view"></div>
@@ -248,11 +248,11 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 const ROLE_LABELS={owner:'Owner',manager:'Manager',supervisor:'Supervisor',staff:'Staff'};
-const PAY_LABELS={cash:'Tunai',duitnow:'QR (DuitNow / E-Wallet)',ewallet:'E-Wallet'};
+const PAY_LABELS={cash:'Cash',duitnow:'QR (DuitNow / E-Wallet)',ewallet:'E-Wallet'};
 const PAY_KEYS=['cash','duitnow'];
-const WALLETS=['Touch \'n Go','GrabPay','ShopeePay','Boost','Lain-lain'];
-const LAIN_CATS={minuman:'Minuman',lain:'Lain-lain'};
-const DEFAULT_SETTINGS={shop_name:'Mika Mochi',shop_address:'',shop_phone:'',receipt_footer:'Terima kasih! Jumpa lagi :)',daifuku_price:5,bites_price:15,duitnow_qr:'',paper:58,pos_booth_id:'',pos_staff:[]};
+const WALLETS=['Touch \'n Go','GrabPay','ShopeePay','Boost','Other'];
+const LAIN_CATS={minuman:'Drinks',lain:'Other'};
+const DEFAULT_SETTINGS={shop_name:'Mika Mochi',shop_address:'',shop_phone:'',receipt_footer:'Thank you! See you again :)',daifuku_price:5,bites_price:15,duitnow_qr:'',paper:58,pos_booth_id:'',pos_staff:[]};
 // Same default Bites list as Internal App (used when mm_flavours has no bites rows)
 const FALLBACK_BITES=['Red Velvet','Tiramisu','Strawberry','Sea Salt','Matcha','Strawberry Matcha','Chocolate Strawberry','Chocolate'];
 
@@ -271,7 +271,7 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function rm(n){return 'RM '+(Math.round((parseFloat(n)||0)*100)/100).toFixed(2);}
 function r2(n){return Math.round((parseFloat(n)||0)*100)/100;}
 function dateStr(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function timeStr(d){return d.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'});}
+function timeStr(d){return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 function uid(){return (crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));}
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
@@ -290,17 +290,17 @@ async function loadUsers(){
   else{const allowed=(st&&st.data&&Array.isArray(st.data.value))?st.data.value.map(String):[];
     if(allowed.length)list=data.filter(u=>allowed.includes(String(u.id))||['owner','manager'].includes(u.role));
     lsSet('mm_pos_users_cache',list);}
-  if(!list.length){g.innerHTML='<div class="muted">Tiada pengguna / tiada internet.</div>';return;}
+  if(!list.length){g.innerHTML='<div class="muted">No users / no internet.</div>';return;}
   g.innerHTML=list.map(u=>`<button class="user-btn" data-id="${esc(u.id)}" onclick="pickUser(this)"><b>${esc(u.name)}</b><span>${esc(ROLE_LABELS[u.role]||u.role)}</span></button>`).join('');
 }
-function pickUser(el){document.querySelectorAll('.user-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');selUser=el.dataset.id;pin='';drawPin();$('loginError').textContent='';$('pinLabel').textContent='PIN untuk '+el.querySelector('b').textContent;}
+function pickUser(el){document.querySelectorAll('.user-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');selUser=el.dataset.id;pin='';drawPin();$('loginError').textContent='';$('pinLabel').textContent='PIN for '+el.querySelector('b').textContent;}
 function drawPin(){$('pinDisplay').textContent='•'.repeat(pin.length);}
 function buildKeypad(){
   const keys=['1','2','3','4','5','6','7','8','9','⌫','0','OK'];
   $('keypad').innerHTML=keys.map(k=>`<button class="${k==='OK'?'k-ok':''}" onclick="keyTap('${k}')">${k}</button>`).join('');
 }
 function keyTap(k){
-  if(!selUser){$('loginError').textContent='Pilih nama dulu';return;}
+  if(!selUser){$('loginError').textContent='Select your name first';return;}
   if(k==='⌫')pin=pin.slice(0,-1);else if(k==='OK')return doLogin();else if(pin.length<8)pin+=k;
   drawPin();
 }
@@ -308,13 +308,13 @@ document.addEventListener('keydown',e=>{if(!$('loginScreen').classList.contains(
 async function doLogin(){
   if(!selUser||!pin)return;
   const {data,error}=await sb.from('mm_users').select('*').eq('id',selUser).eq('pin',pin).maybeSingle();
-  if(error){$('loginError').textContent='Tiada sambungan internet';return;}
-  if(!data){$('loginError').textContent='PIN salah';pin='';drawPin();return;}
+  if(error){$('loginError').textContent='No internet connection';return;}
+  if(!data){$('loginError').textContent='Wrong PIN';pin='';drawPin();return;}
   user=data;lsSet('mm_pos_user',{id:data.id,name:data.name,role:data.role,access_override:data.access_override||null});
   startApp();
 }
 function logout(){
-  if(cart.length&&!confirm('Troli belum dibayar. Keluar juga?'))return;
+  if(cart.length&&!confirm('Cart not paid yet. Log out anyway?'))return;
   user=null;cart=[];discount=0;localStorage.removeItem('mm_pos_user');
   $('app').classList.add('hidden');$('loginScreen').classList.remove('hidden');pin='';selUser=null;drawPin();loadUsers();
 }
@@ -340,7 +340,7 @@ async function loadMenu(){
     }
     if(!it.error)menu.lain=(it.data||[]).filter(i=>i.active!==false).map(i=>({id:i.id,name:i.name,price:+i.price||0,category:i.category||'lain'}));
     if(!se.error){const s={};(se.data||[]).forEach(r=>s[r.key]=r.value);settings={...DEFAULT_SETTINGS,...s};}
-    if(it.error||se.error)toast('Table POS belum ada — run SQL dulu','error');
+    if(it.error||se.error)toast('POS tables missing — run the SQL first','error');
     lsSet('mm_pos_menu_cache',{menu,settings});
   }catch(e){console.warn('menu load',e);}
 }
@@ -380,14 +380,14 @@ function renderSell(){
     <div class="cat-row">
       <button class="cat-btn ${curCat==='daifuku'?'active':''}" onclick="setCat('daifuku')">Daifuku</button>
       <button class="cat-btn ${curCat==='bites'?'active':''}" onclick="setCat('bites')">Mochi Bites</button>
-      <button class="cat-btn ${curCat==='lain'?'active':''}" onclick="setCat('lain')">Minuman & Lain</button>
-      <input class="search" id="searchBox" placeholder="Cari flavour..." value="${esc(search)}" oninput="search=this.value;drawGrid()">
+      <button class="cat-btn ${curCat==='lain'?'active':''}" onclick="setCat('lain')">Drinks & Other</button>
+      <input class="search" id="searchBox" placeholder="Search flavour..." value="${esc(search)}" oninput="search=this.value;drawGrid()">
     </div>
     <div class="grid" id="grid"></div>
   </div>
   <div class="cart-pane" id="cartPane">
     <button class="cart-toggle" onclick="$('cartPane').classList.toggle('open')"><span></span></button>
-    <div class="cart-head"><h3 id="cartTitle" onclick="$('cartPane').classList.toggle('open')">Troli</h3><div style="display:flex;gap:10px;align-items:center"><button class="link-btn" onclick="clearCart()">Kosongkan</button><button class="mini-pay" id="miniPay" onclick="openPay()" disabled>BAYAR</button></div></div>
+    <div class="cart-head"><h3 id="cartTitle" onclick="$('cartPane').classList.toggle('open')">Cart</h3><div style="display:flex;gap:10px;align-items:center"><button class="link-btn" onclick="clearCart()">Clear</button><button class="mini-pay" id="miniPay" onclick="openPay()" disabled>PAY</button></div></div>
     <div class="cart-list" id="cartList"></div>
     <div class="cart-foot" id="cartFoot"></div>
   </div>`;
@@ -397,40 +397,40 @@ function setCat(c){curCat=c;search='';renderSell();}
 function drawGrid(){
   const g=$('grid');if(!g)return;
   const tiles=tilesFor(curCat);
-  if(!tiles.length){g.innerHTML=`<div class="empty">${curCat==='lain'?(isMgr()?'Belum ada item. Tambah di Tetapan → Item Lain.':'Belum ada item.'):'Tiada flavour dijumpai.'}</div>`;return;}
+  if(!tiles.length){g.innerHTML=`<div class="empty">${curCat==='lain'?(isMgr()?'No items yet. Add them in Settings → Other Items.':'No items yet.'):'No flavour found.'}</div>`;return;}
   const track=stockTracking();
   g.innerHTML=tiles.map(t=>{const inCart=cart.find(c=>c.key===t.key);const left=track&&t.cat!=='lain'?stockLeft(t.key):null;const out=left!==null&&left<=0;
-    return`<button class="tile ${t.cat} ${out?'out':''}" data-key="${esc(t.key)}" onclick="addItem(this.dataset.key)">${inCart?`<span class="t-badge">${inCart.qty}</span>`:''}<span class="t-name">${esc(t.name)}</span><span class="t-price">${rm(t.price)}${left!==null?` · <span class="t-stock ${left>0&&left<=3?'low':''}">${out?(left<0?'Lebih '+(-left):'Habis'):'Tinggal '+left}</span>`:''}</span></button>`;}).join('');
+    return`<button class="tile ${t.cat} ${out?'out':''}" data-key="${esc(t.key)}" onclick="addItem(this.dataset.key)">${inCart?`<span class="t-badge">${inCart.qty}</span>`:''}<span class="t-name">${esc(t.name)}</span><span class="t-price">${rm(t.price)}${left!==null?` · <span class="t-stock ${left>0&&left<=3?'low':''}">${out?(left<0?'Over '+(-left):'Sold out'):left+' left'}</span>`:''}</span></button>`;}).join('');
 }
 function findTile(key){const [cat]=key.split('|');return tilesFor(cat).find(t=>t.key===key)||[...tilesFor('daifuku'),...tilesFor('bites'),...tilesFor('lain')].find(t=>t.key===key);}
 function addItem(key){
-  if(stockTracking()&&!key.startsWith('lain|')&&stockLeft(key)<=0){toast('⚠️ Stok '+key.split('|')[1]+' dah habis dalam sistem','error');}
+  if(stockTracking()&&!key.startsWith('lain|')&&stockLeft(key)<=0){toast('⚠️ '+key.split('|')[1]+' is out of stock in the system','error');}
   const ex=cart.find(c=>c.key===key);
   if(ex)ex.qty++;else{const t=findTile(key);if(!t)return;cart.push({key:t.key,name:t.name,cat:t.cat,price:t.price,qty:1});}
   if(navigator.vibrate)navigator.vibrate(12);
   drawGrid();drawCart();
 }
 function changeQty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);if(!cart.length)discount=0;drawGrid();drawCart();}
-function clearCart(){if(!cart.length)return;if(!confirm('Kosongkan troli?'))return;cart=[];discount=0;drawGrid();drawCart();}
+function clearCart(){if(!cart.length)return;if(!confirm('Clear the cart?'))return;cart=[];discount=0;drawGrid();drawCart();}
 function cartTotals(){const subtotal=r2(cart.reduce((a,c)=>a+c.price*c.qty,0));const disc=Math.min(r2(discount),subtotal);return{subtotal,discount:disc,total:r2(subtotal-disc),count:cart.reduce((a,c)=>a+c.qty,0)};}
 function drawCart(){
   const l=$('cartList');if(!l)return;
   const T=cartTotals();
-  $('cartTitle').textContent=T.count?`Troli (${T.count})`:'Troli';
-  const mp=$('miniPay');if(mp){mp.disabled=!cart.length;mp.textContent=cart.length?'BAYAR '+rm(T.total):'BAYAR';}
-  l.innerHTML=!cart.length?'<div class="empty">Tekan flavour untuk tambah</div>':cart.map((c,i)=>`<div class="c-row"><div class="c-info"><div class="c-name">${esc(c.name)}</div><div class="c-sub">${c.cat==='daifuku'?'Daifuku':c.cat==='bites'?'Mochi Bites':'Lain'} · ${rm(c.price)}</div></div><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${c.qty}</span><button onclick="changeQty(${i},1)">+</button></div><div class="c-amt">${(c.price*c.qty).toFixed(2)}</div></div>`).join('');
+  $('cartTitle').textContent=T.count?`Cart (${T.count})`:'Cart';
+  const mp=$('miniPay');if(mp){mp.disabled=!cart.length;mp.textContent=cart.length?'PAY '+rm(T.total):'PAY';}
+  l.innerHTML=!cart.length?'<div class="empty">Tap a flavour to add</div>':cart.map((c,i)=>`<div class="c-row"><div class="c-info"><div class="c-name">${esc(c.name)}</div><div class="c-sub">${c.cat==='daifuku'?'Daifuku':c.cat==='bites'?'Mochi Bites':'Other'} · ${rm(c.price)}</div></div><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${c.qty}</span><button onclick="changeQty(${i},1)">+</button></div><div class="c-amt">${(c.price*c.qty).toFixed(2)}</div></div>`).join('');
   $('cartFoot').innerHTML=`
     <div class="sum-row"><span>Subtotal</span><span>${rm(T.subtotal)}</span></div>
-    <div class="sum-row"><span><button class="disc-btn" onclick="openDiscount()" ${cart.length?'':'disabled'}>${T.discount>0?'Diskaun (ubah)':'+ Diskaun'}</button></span><span>${T.discount>0?'− '+rm(T.discount):''}</span></div>
-    <div class="sum-row total"><span>Jumlah</span><span>${rm(T.total)}</span></div>
-    <button class="pay-btn" onclick="openPay()" ${cart.length?'':'disabled'}>BAYAR ${cart.length?rm(T.total):''}</button>`;
+    <div class="sum-row"><span><button class="disc-btn" onclick="openDiscount()" ${cart.length?'':'disabled'}>${T.discount>0?'Discount (edit)':'+ Discount'}</button></span><span>${T.discount>0?'− '+rm(T.discount):''}</span></div>
+    <div class="sum-row total"><span>Total</span><span>${rm(T.total)}</span></div>
+    <button class="pay-btn" onclick="openPay()" ${cart.length?'':'disabled'}>PAY ${cart.length?rm(T.total):''}</button>`;
 }
 function openDiscount(){
   const T=cartTotals();
-  openModal(`<h2>Diskaun <button class="x-btn" onclick="closeModal()">✕</button></h2>
-  <div class="fg"><label class="label">Jumlah diskaun (RM)</label><input class="input big-input" id="discIn" type="number" inputmode="decimal" step="0.01" value="${discount||''}" placeholder="0.00"></div>
-  <div class="quick" style="grid-template-columns:repeat(4,1fr)"><button onclick="$('discIn').value=(${T.subtotal}*0.05).toFixed(2)">5%</button><button onclick="$('discIn').value=(${T.subtotal}*0.1).toFixed(2)">10%</button><button onclick="$('discIn').value=(${T.subtotal}*0.15).toFixed(2)">15%</button><button onclick="$('discIn').value=''">Buang</button></div>
-  <div class="btn-row"><button class="btn outline" onclick="closeModal()">Batal</button><button class="btn" onclick="discount=Math.max(0,parseFloat($('discIn').value)||0);closeModal();drawCart()">Simpan</button></div>`);
+  openModal(`<h2>Discount <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="fg"><label class="label">Discount amount (RM)</label><input class="input big-input" id="discIn" type="number" inputmode="decimal" step="0.01" value="${discount||''}" placeholder="0.00"></div>
+  <div class="quick" style="grid-template-columns:repeat(4,1fr)"><button onclick="$('discIn').value=(${T.subtotal}*0.05).toFixed(2)">5%</button><button onclick="$('discIn').value=(${T.subtotal}*0.1).toFixed(2)">10%</button><button onclick="$('discIn').value=(${T.subtotal}*0.15).toFixed(2)">15%</button><button onclick="$('discIn').value=''">Remove</button></div>
+  <div class="btn-row"><button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn" onclick="discount=Math.max(0,parseFloat($('discIn').value)||0);closeModal();drawCart()">Save</button></div>`);
   setTimeout(()=>$('discIn')?.focus(),50);
 }
 
@@ -447,27 +447,27 @@ function drawPay(){
   if(m==='cash'){
     const rec=parseFloat(pay.received);const chg=isNaN(rec)?null:r2(rec-T.total);
     const notes=[...new Set([T.total,Math.ceil(T.total/10)*10,Math.ceil(T.total/50)*50,100].filter(v=>v>=T.total))].slice(0,4);
-    body=`<label class="label">Tunai diterima (RM)</label>
+    body=`<label class="label">Cash received (RM)</label>
     <input class="input big-input" id="recIn" type="number" inputmode="decimal" step="0.01" placeholder="0.00" value="${esc(pay.received)}" oninput="pay.received=this.value;updChange()">
-    <div class="quick">${notes.map((v,i)=>`<button onclick="setRec(${v})">${i===0?'Tepat':'RM'+v}</button>`).join('')}<button onclick="setRec('')">Clear</button></div>
+    <div class="quick">${notes.map((v,i)=>`<button onclick="setRec(${v})">${i===0?'Exact':'RM'+v}</button>`).join('')}<button onclick="setRec('')">Clear</button></div>
     <div class="change-box" id="chgBox">${chgHtml(chg)}</div>`;
   }else if(m==='duitnow'){
-    body=settings.duitnow_qr?`<div class="qr-box"><img src="${settings.duitnow_qr}" alt="DuitNow QR"><p class="note">Pelanggan boleh scan guna app bank atau e-wallet (TNG, GrabPay, ShopeePay, Boost). Tekan "Dah Terima" bila nampak notifikasi bayaran masuk.</p></div>`
-      :`<div class="change-box"><b>QR belum dimuat naik.</b><p class="note">${isMgr()?'Pergi Tetapan → DuitNow QR untuk upload gambar QR kedai.':'Minta owner upload QR di Tetapan.'} Boleh guna QR fizikal di kaunter dulu.</p></div>`;
+    body=settings.duitnow_qr?`<div class="qr-box"><img src="${settings.duitnow_qr}" alt="DuitNow QR"><p class="note">Customers can scan with any banking or e-wallet app (TNG, GrabPay, ShopeePay, Boost). Tap "Received" once you see the payment notification.</p></div>`
+      :`<div class="change-box"><b>QR not uploaded yet.</b><p class="note">${isMgr()?'Go to Settings → DuitNow QR to upload the shop QR image.':'Ask the owner to upload the QR in Settings.'} You can use the printed QR at the counter for now.</p></div>`;
   }else{
     body=`<label class="label">E-Wallet</label><div class="wallets">${WALLETS.map(w=>`<button class="method ${pay.wallet===w?'active':''}" style="padding:12px" onclick="pay.wallet='${w.replace(/'/g,"\\'")}';drawPay()">${esc(w)}</button>`).join('')}</div>`;
   }
-  openModal(`<h2>Bayaran <button class="x-btn" onclick="closeModal()">✕</button></h2>
-  <div class="pay-total"><div class="l">JUMLAH${T.discount>0?' (selepas diskaun '+rm(T.discount)+')':''}</div><div class="v">${rm(T.total)}</div></div>
+  openModal(`<h2>Payment <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="pay-total"><div class="l">TOTAL${T.discount>0?' (after '+rm(T.discount)+' discount)':''}</div><div class="v">${rm(T.total)}</div></div>
   <div class="method-grid">
-    <button class="method ${m==='cash'?'active':''}" onclick="pay.method='cash';drawPay()"><span class="ic">💵</span>Tunai</button>
+    <button class="method ${m==='cash'?'active':''}" onclick="pay.method='cash';drawPay()"><span class="ic">💵</span>Cash</button>
     <button class="method ${m==='duitnow'?'active':''}" onclick="pay.method='duitnow';drawPay()"><span class="ic">🔳</span>QR<span style="font-size:.72rem;font-weight:600;color:var(--muted)">DuitNow / TNG / Grab / Shopee</span></button>
   </div>
   ${body}
-  <div class="btn-row"><button class="btn outline" onclick="closeModal()">Batal</button><button class="btn green" id="confirmPay" onclick="confirmPay()" ${payReady()?'':'disabled'}>${m==='cash'?'Selesai':'Dah Terima ✓'}</button></div>`,true);
+  <div class="btn-row"><button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn green" id="confirmPay" onclick="confirmPay()" ${payReady()?'':'disabled'}>${m==='cash'?'Complete':'Received ✓'}</button></div>`,true);
   if(m==='cash')setTimeout(()=>$('recIn')?.focus(),50);
 }
-function chgHtml(chg){if(chg===null)return'<div class="muted" style="font-weight:700">Masukkan jumlah diterima</div>';if(chg<0)return`<div class="l muted" style="font-weight:700">KURANG</div><div class="v" style="color:var(--red)">${rm(-chg)}</div>`;return`<div class="l muted" style="font-weight:700">BAKI PULANG</div><div class="v" style="color:var(--green-dark)">${rm(chg)}</div>`;}
+function chgHtml(chg){if(chg===null)return'<div class="muted" style="font-weight:700">Enter amount received</div>';if(chg<0)return`<div class="l muted" style="font-weight:700">SHORT</div><div class="v" style="color:var(--red)">${rm(-chg)}</div>`;return`<div class="l muted" style="font-weight:700">CHANGE</div><div class="v" style="color:var(--green-dark)">${rm(chg)}</div>`;}
 function setRec(v){pay.received=String(v);const i=$('recIn');if(i)i.value=pay.received;updChange();}
 function updChange(){const T=cartTotals();const rec=parseFloat(pay.received);$('chgBox').innerHTML=chgHtml(isNaN(rec)?null:r2(rec-T.total));const b=$('confirmPay');if(b)b.disabled=!payReady();}
 function payReady(){const T=cartTotals();if(pay.method==='cash'){const r=parseFloat(pay.received);return !isNaN(r)&&r2(r)>=T.total;}if(pay.method==='ewallet')return !!pay.wallet;return true;}
@@ -475,7 +475,7 @@ function payReady(){const T=cartTotals();if(pay.method==='cash'){const r=parseFl
 let lastSale=null;
 async function confirmPay(){
   if(!payReady())return;
-  const b=$('confirmPay');if(b){b.disabled=true;b.textContent='Menyimpan...';}
+  const b=$('confirmPay');if(b){b.disabled=true;b.textContent='Saving...';}
   const T=cartTotals();const now=new Date();
   const rec=pay.method==='cash'?r2(pay.received):null;
   const sale={
@@ -502,11 +502,11 @@ async function confirmPay(){
 }
 function showDone(sale){
   openModal(`<div class="done"><div class="tick">✓</div>
-  <div style="font-weight:800;font-size:1.1rem">Jualan direkod · ${esc(sale.receipt_no)}</div>
+  <div style="font-weight:800;font-size:1.1rem">Sale recorded · ${esc(sale.receipt_no)}</div>
   <div class="muted" style="margin:4px 0 14px">${rm(sale.total)} · ${esc(PAY_LABELS[sale.payment_method])}${sale.payment_detail?' ('+esc(sale.payment_detail)+')':''}</div>
-  ${sale.payment_method==='cash'?`<div class="muted" style="font-weight:700">BAKI PULANG</div><div class="chg">${rm(sale.change_given)}</div>`:''}
+  ${sale.payment_method==='cash'?`<div class="muted" style="font-weight:700">CHANGE</div><div class="chg">${rm(sale.change_given)}</div>`:''}
   </div>
-  <div class="btn-row"><button class="btn outline" onclick="printReceipt(lastSale)">🖨️ ${autoPrintOn()?'Cetak Semula':'Cetak Resit'}</button><button class="btn green" onclick="closeModal();renderSell()">Jualan Baru →</button></div>`);
+  <div class="btn-row"><button class="btn outline" onclick="printReceipt(lastSale)">🖨️ ${autoPrintOn()?'Reprint':'Print Receipt'}</button><button class="btn green" onclick="closeModal();renderSell()">New Sale →</button></div>`);
 }
 
 // ===================== RECEIPT NO =====================
@@ -534,11 +534,11 @@ async function flushQueue(){
 let netState='ok',lastFlushErr='';
 function updateNet(){
   const n=getQueue().length;const dot=$('netDot'),lbl=$('netLbl');if(!dot)return;
-  if(!navigator.onLine||netState==='off'){dot.className='dot bad';lbl.textContent=n?`Offline · ${n} belum hantar`:'Offline';}
-  else if(netState==='err'&&n){dot.className='dot warn';lbl.textContent=`${n} belum hantar`;}
-  else if(n){dot.className='dot warn';lbl.textContent=`Menghantar ${n}...`;}
+  if(!navigator.onLine||netState==='off'){dot.className='dot bad';lbl.textContent=n?`Offline · ${n} not sent`:'Offline';}
+  else if(netState==='err'&&n){dot.className='dot warn';lbl.textContent=`${n} not sent`;}
+  else if(n){dot.className='dot warn';lbl.textContent=`Sending ${n}...`;}
   else{dot.className='dot ok';lbl.textContent='Online';}
-  $('netChip').onclick=()=>{if(n){flushQueue();toast(lastFlushErr&&netState==='err'?'Ralat: '+lastFlushErr:'Cuba hantar semula...');}};
+  $('netChip').onclick=()=>{if(n){flushQueue();toast(lastFlushErr&&netState==='err'?'Error: '+lastFlushErr:'Retrying...');}};
 }
 window.addEventListener('online',()=>{netState='ok';flushQueue();});
 window.addEventListener('offline',()=>{netState='off';updateNet();});
@@ -597,24 +597,24 @@ function drawStock(){
   const el=$('stkBody');if(!el)return;
   const rec=sumReceipts(stock.receipts);const first=!stock.receipts.length;
   if(!stkForm){stkForm={};if(first)Object.entries(stkOrder||{}).forEach(([k,q])=>stkForm[k]=q);}
-  const reasonMsg={nobooth:isMgr()?'Booth Kedai belum dipilih. Pergi Tetapan → Production Order, pilih booth Kedai supaya stok auto isi.':'Booth Kedai belum diset. Minta owner set di Tetapan.',noorder:'Tiada Production Order untuk Kedai minggu ni. Isi kuantiti manual.',offday:'Hari ni ditanda OFF dalam Production Order.',empty:'Order Kedai untuk hari ni kosong. Isi manual kalau ada stok sampai.',ok:'Kuantiti di bawah diisi ikut Production Order. Betulkan kalau jumlah sebenar lain.'};
-  let h=`<div class="stat-grid"><div class="stat hero"><div class="v">${new Date(stock.date+'T00:00:00').toLocaleDateString('ms-MY',{weekday:'long',day:'numeric',month:'short'})}</div><div class="l">Stok Masuk Kedai</div></div>
-  <div class="stat"><div class="v">${sumCat(rec,'daifuku')}</div><div class="l">Daifuku diterima (pcs)</div></div>
-  <div class="stat"><div class="v">${sumCat(rec,'bites')}</div><div class="l">Bites diterima (pack)</div></div>
-  <div class="stat"><div class="v">${sumCat(stkOrder||{},'daifuku')} / ${sumCat(stkOrder||{},'bites')}</div><div class="l">Order produksi (pcs / pack)</div></div></div>`;
+  const reasonMsg={nobooth:isMgr()?'Shop booth not selected. Go to Settings → Production Order and pick the shop booth so stock auto-fills.':'Shop booth not set. Ask the owner to set it in Settings.',noorder:'No Production Order for the shop this week. Enter quantities manually.',offday:'Today is marked OFF in the Production Order.',empty:'Shop order for today is empty. Enter manually if stock arrives.',ok:'Quantities below are filled from the Production Order. Correct them if the actual count differs.'};
+  let h=`<div class="stat-grid"><div class="stat hero"><div class="v">${new Date(stock.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})}</div><div class="l">Shop Stock In</div></div>
+  <div class="stat"><div class="v">${sumCat(rec,'daifuku')}</div><div class="l">Daifuku received (pcs)</div></div>
+  <div class="stat"><div class="v">${sumCat(rec,'bites')}</div><div class="l">Bites received (pack)</div></div>
+  <div class="stat"><div class="v">${sumCat(stkOrder||{},'daifuku')} / ${sumCat(stkOrder||{},'bites')}</div><div class="l">Production order (pcs / pack)</div></div></div>`;
   if(stock.receipts.length){
-    h+=`<div class="card"><div class="card-title">Penerimaan Hari Ini ${stkShowForm?'':`<button class="btn sm" onclick="stkShowForm=true;stkForm={};drawStock()">+ Tambah Stok (hantaran lagi)</button>`}</div>
-    ${stock.receipts.map((r,i)=>`<div class="list-item"><div class="li-main"><div class="li-title">Hantaran ${i+1} · ${timeStr(new Date(r.at))}</div><div class="li-meta">${esc(r.by||'')} · Daifuku ${sumCat(r.items,'daifuku')} pcs · Bites ${sumCat(r.items,'bites')} pack${r.source==='order'?' · ikut order':''}</div></div>${isMgr()?`<button class="btn sm outline" onclick="deleteReceipt(${i})">Padam</button>`:''}</div>`).join('')}
-    <table class="tbl" style="margin-top:10px"><tr><th>Flavour</th><th>Order</th><th>Diterima</th><th>Terjual</th><th>Baki</th></tr>
+    h+=`<div class="card"><div class="card-title">Today's Deliveries ${stkShowForm?'':`<button class="btn sm" onclick="stkShowForm=true;stkForm={};drawStock()">+ Add Stock (another delivery)</button>`}</div>
+    ${stock.receipts.map((r,i)=>`<div class="list-item"><div class="li-main"><div class="li-title">Delivery ${i+1} · ${timeStr(new Date(r.at))}</div><div class="li-meta">${esc(r.by||'')} · Daifuku ${sumCat(r.items,'daifuku')} pcs · Bites ${sumCat(r.items,'bites')} pack${r.source==='order'?' · as ordered':''}</div></div>${isMgr()?`<button class="btn sm outline" onclick="deleteReceipt(${i})">Delete</button>`:''}</div>`).join('')}
+    <table class="tbl" style="margin-top:10px"><tr><th>Flavour</th><th>Order</th><th>Received</th><th>Sold</th><th>Left</th></tr>
     ${['daifuku','bites'].map(cat=>{const ks=stockKeys().filter(k=>k.startsWith(cat+'|')&&((rec[k]||0)||(stkOrder[k]||0)||(soldToday[k]||0)));if(!ks.length)return'';return`<tr class="sec"><td colspan="5">${cat==='daifuku'?'Daifuku':'Mochi Bites'}</td></tr>`+ks.map(k=>{const left=(rec[k]||0)-(soldToday[k]||0);return`<tr><td>${esc(k.split('|')[1])}</td><td>${stkOrder[k]||'–'}</td><td><b>${rec[k]||0}</b></td><td>${soldToday[k]||0}</td><td style="font-weight:800;color:${left<0?'var(--red)':left===0?'var(--muted)':'var(--green-dark)'}">${left}</td></tr>`;}).join('');}).join('')}
     </table></div>`;
   }
   if(stkShowForm){
-    h+=`<div class="card"><div class="card-title">${first?'Terima Stok dari Production':'Tambah Stok'}${!first?`<button class="btn sm outline" onclick="stkShowForm=false;drawStock()">Batal</button>`:''}</div>
-    <p class="note" style="margin:-4px 0 12px">${first?esc(reasonMsg[stkReason]||''):'Isi kuantiti hantaran tambahan sahaja.'}</p>
+    h+=`<div class="card"><div class="card-title">${first?'Receive Stock from Production':'Add Stock'}${!first?`<button class="btn sm outline" onclick="stkShowForm=false;drawStock()">Cancel</button>`:''}</div>
+    <p class="note" style="margin:-4px 0 12px">${first?esc(reasonMsg[stkReason]||''):'Enter the extra delivery quantities only.'}</p>
     ${['daifuku','bites'].map(cat=>{const ks=stockKeys().filter(k=>k.startsWith(cat+'|'));if(!ks.length)return'';return`<div style="font-weight:800;color:var(--pink-dark);margin:6px 0">${cat==='daifuku'?'Daifuku (pcs)':'Mochi Bites (pack)'}</div><div class="stk-grid">${ks.map(k=>`<div class="stk-row"><div class="n">${esc(k.split('|')[1])}${first&&stkOrder[k]?`<div class="o">Order: ${stkOrder[k]}</div>`:''}</div><button class="stk-btn" onclick="stkStep('${esc(k).replace(/'/g,"\\'")}',-1)">−</button><input class="stk-in" type="number" inputmode="numeric" min="0" data-k="${esc(k)}" value="${stkForm[k]||''}" placeholder="0" oninput="stkForm[this.dataset.k]=Math.max(0,parseInt(this.value)||0);stkTotals()"><button class="stk-btn" onclick="stkStep('${esc(k).replace(/'/g,"\\'")}',1)">+</button></div>`).join('')}</div>`;}).join('')}
-    <div class="line" style="margin-top:12px"><span>Jumlah</span><b id="stkTot"></b></div>
-    <div class="btn-row"><button class="btn outline" onclick="stkForm={};drawStock()">Kosongkan</button><button class="btn green" onclick="saveReceipt()">✓ Terima Stok</button></div></div>`;
+    <div class="line" style="margin-top:12px"><span>Total</span><b id="stkTot"></b></div>
+    <div class="btn-row"><button class="btn outline" onclick="stkForm={};drawStock()">Clear</button><button class="btn green" onclick="saveReceipt()">✓ Receive Stock</button></div></div>`;
   }
   el.innerHTML=h;stkTotals();
 }
@@ -623,19 +623,19 @@ function stkStep(k,d){stkForm[k]=Math.max(0,(stkForm[k]||0)+d);const i=document.
 function stkTotals(){const t=$('stkTot');if(t)t.textContent=`${sumCat(stkForm,'daifuku')} pcs · ${sumCat(stkForm,'bites')} pack`;}
 async function saveReceipt(){
   const items={};Object.entries(stkForm||{}).forEach(([k,q])=>{if(q>0)items[k]=q;});
-  if(!Object.keys(items).length)return toast('Tiada kuantiti diisi','error');
+  if(!Object.keys(items).length)return toast('No quantities entered','error');
   const first=!stock.receipts.length;
   const sameAsOrder=first&&JSON.stringify(Object.entries(items).sort())===JSON.stringify(Object.entries(stkOrder||{}).sort());
   const receipts=[...stock.receipts,{at:new Date().toISOString(),by:user.name,source:sameAsOrder?'order':'manual',items}];
   const {error}=await sb.from('mm_pos_stock_days').upsert({stock_date:stock.date,receipts,updated_at:new Date().toISOString()},{onConflict:'stock_date'});
-  if(error)return toast('Gagal: '+error.message,'error');
-  toast('Stok diterima ✓','success');stkForm=null;stkShowForm=false;await loadStock();drawStock();
+  if(error)return toast('Failed: '+error.message,'error');
+  toast('Stock received ✓','success');stkForm=null;stkShowForm=false;await loadStock();drawStock();
 }
 async function deleteReceipt(i){
-  if(!confirm('Padam hantaran '+(i+1)+'?'))return;
+  if(!confirm('Delete delivery '+(i+1)+'?'))return;
   const receipts=stock.receipts.filter((_,j)=>j!==i);
   const {error}=await sb.from('mm_pos_stock_days').upsert({stock_date:stock.date,receipts,updated_at:new Date().toISOString()},{onConflict:'stock_date'});
-  if(error)return toast('Gagal: '+error.message,'error');
+  if(error)return toast('Failed: '+error.message,'error');
   await loadStock();stkShowForm=!stock.receipts.length;stkForm=null;drawStock();
 }
 
@@ -649,14 +649,14 @@ async function fetchSales(from,to){
 }
 async function renderHistory(){
   $('view').innerHTML=`<div class="page"><div class="page-inner">
-  <div class="card"><div class="row" style="align-items:flex-end"><div><label class="label">Tarikh</label><input class="input" type="date" value="${histDate}" onchange="histDate=this.value;renderHistory()"></div><div style="flex:0"><button class="btn outline" onclick="histDate=dateStr();renderHistory()">Hari Ini</button></div></div></div>
+  <div class="card"><div class="row" style="align-items:flex-end"><div><label class="label">Date</label><input class="input" type="date" value="${histDate}" onchange="histDate=this.value;renderHistory()"></div><div style="flex:0"><button class="btn outline" onclick="histDate=dateStr();renderHistory()">Today</button></div></div></div>
   <div id="histBody"><div class="card muted">Loading...</div></div></div></div>`;
   const {list,error}=await fetchSales(histDate,histDate);
   const live=list.filter(s=>!s.voided);
   const tot=r2(live.reduce((a,s)=>a+(+s.total||0),0));
-  let h=`<div class="stat-grid"><div class="stat hero"><div class="v">${rm(tot)}</div><div class="l">Jualan ${histDate===dateStr()?'hari ini':histDate}</div></div><div class="stat"><div class="v">${live.length}</div><div class="l">Transaksi</div></div><div class="stat"><div class="v">${list.length-live.length}</div><div class="l">Batal (void)</div></div></div>`;
+  let h=`<div class="stat-grid"><div class="stat hero"><div class="v">${rm(tot)}</div><div class="l">Sales ${histDate===dateStr()?'today':histDate}</div></div><div class="stat"><div class="v">${live.length}</div><div class="l">Transactions</div></div><div class="stat"><div class="v">${list.length-live.length}</div><div class="l">Voided</div></div></div>`;
   if(error)h+=`<div class="card" style="color:var(--red);font-weight:700">⚠️ ${esc(error.message)}</div>`;
-  h+=`<div class="card"><div class="card-title">Senarai Resit</div>${!list.length?'<div class="empty">Tiada jualan.</div>':list.map(s=>`<div class="list-item" onclick="viewSale('${esc(s.client_id)}')" style="cursor:pointer"><div class="li-main"><div class="li-title">${esc(s.receipt_no)} ${s.voided?'<span class="pill void">VOID</span>':''}${s._pending?' <span class="pill pending">Belum hantar</span>':''}</div><div class="li-meta">${timeStr(new Date(s.created_at))} · ${esc(PAY_LABELS[s.payment_method]||s.payment_method)}${s.payment_detail?' ('+esc(s.payment_detail)+')':''} · ${(s.items||[]).reduce((a,i)=>a+i.qty,0)} item · ${esc(s.staff_name||'')}</div></div><div style="font-weight:800;${s.voided?'text-decoration:line-through;color:var(--muted)':''}">${rm(s.total)}</div></div>`).join('')}</div>`;
+  h+=`<div class="card"><div class="card-title">Receipts</div>${!list.length?'<div class="empty">No sales.</div>':list.map(s=>`<div class="list-item" onclick="viewSale('${esc(s.client_id)}')" style="cursor:pointer"><div class="li-main"><div class="li-title">${esc(s.receipt_no)} ${s.voided?'<span class="pill void">VOID</span>':''}${s._pending?' <span class="pill pending">Not sent</span>':''}</div><div class="li-meta">${timeStr(new Date(s.created_at))} · ${esc(PAY_LABELS[s.payment_method]||s.payment_method)}${s.payment_detail?' ('+esc(s.payment_detail)+')':''} · ${(s.items||[]).reduce((a,i)=>a+i.qty,0)} items · ${esc(s.staff_name||'')}</div></div><div style="font-weight:800;${s.voided?'text-decoration:line-through;color:var(--muted)':''}">${rm(s.total)}</div></div>`).join('')}</div>`;
   $('histBody').innerHTML=h;
   window._hist=list;
 }
@@ -664,22 +664,22 @@ function viewSale(cid){
   const s=(window._hist||[]).find(x=>x.client_id===cid);if(!s)return;
   openModal(`<h2>${esc(s.receipt_no)} <button class="x-btn" onclick="closeModal()">✕</button></h2>
   <div class="receipt-preview">${esc(receiptText(s))}</div>
-  ${s.voided?`<p class="note" style="color:var(--red)">Dibatalkan oleh ${esc(s.voided_by||'-')}: ${esc(s.void_reason||'')}</p>`:''}
-  <div class="btn-row"><button class="btn outline" onclick="printReceipt(${JSON.stringify(cid).replace(/"/g,'&quot;')})">🖨️ Cetak</button>${isMgr()&&!s.voided&&!s._pending?`<button class="btn red" onclick="voidSale('${esc(s.id)}')">Batal Jualan</button>`:''}</div>`);
+  ${s.voided?`<p class="note" style="color:var(--red)">Voided by ${esc(s.voided_by||'-')}: ${esc(s.void_reason||'')}</p>`:''}
+  <div class="btn-row"><button class="btn outline" onclick="printReceipt(${JSON.stringify(cid).replace(/"/g,'&quot;')})">🖨️ Print</button>${isMgr()&&!s.voided&&!s._pending?`<button class="btn red" onclick="voidSale('${esc(s.id)}')">Void Sale</button>`:''}</div>`);
 }
 async function voidSale(id){
-  const reason=prompt('Sebab batal? (contoh: salah key in, pelanggan cancel)');if(reason===null)return;
-  if(!reason.trim())return toast('Sebab wajib diisi','error');
+  const reason=prompt('Reason for void? (e.g. wrong entry, customer cancelled)');if(reason===null)return;
+  if(!reason.trim())return toast('Reason is required','error');
   const {error}=await sb.from('mm_pos_sales').update({voided:true,void_reason:reason.trim(),voided_by:user.name}).eq('id',id);
-  if(error)return toast('Gagal: '+error.message,'error');
-  toast('Jualan dibatalkan','success');closeModal();renderHistory();loadStock();
+  if(error)return toast('Failed: '+error.message,'error');
+  toast('Sale voided','success');closeModal();renderHistory();loadStock();
 }
 
 // ===================== CLOSE / DAILY REPORT =====================
 let closeDate=dateStr();
 async function renderClose(){
   $('view').innerHTML=`<div class="page"><div class="page-inner">
-  <div class="card"><div class="row" style="align-items:flex-end"><div><label class="label">Tarikh</label><input class="input" type="date" value="${closeDate}" onchange="closeDate=this.value;renderClose()"></div><div style="flex:0"><button class="btn outline" onclick="closeDate=dateStr();renderClose()">Hari Ini</button></div></div></div>
+  <div class="card"><div class="row" style="align-items:flex-end"><div><label class="label">Date</label><input class="input" type="date" value="${closeDate}" onchange="closeDate=this.value;renderClose()"></div><div style="flex:0"><button class="btn outline" onclick="closeDate=dateStr();renderClose()">Today</button></div></div></div>
   <div id="closeBody"><div class="card muted">Loading...</div></div></div></div>`;
   const [{list,error},cl,st]=await Promise.all([fetchSales(closeDate,closeDate),sb.from('mm_pos_closings').select('*').eq('close_date',closeDate).order('created_at',{ascending:false}).limit(1),sb.from('mm_pos_stock_days').select('*').eq('stock_date',closeDate).maybeSingle()]);
   const R=summarize(list);
@@ -688,24 +688,24 @@ async function renderClose(){
   window._closeSum=R;
   let h='';
   if(error)h+=`<div class="card" style="color:var(--red);font-weight:700">⚠️ ${esc(error.message)}</div>`;
-  if(R.pending)h+=`<div class="card" style="color:var(--orange);font-weight:700">⚠️ ${R.pending} jualan belum dihantar ke server. Pastikan internet ada sebelum tutup kedai.</div>`;
-  h+=`<div class="stat-grid"><div class="stat hero"><div class="v">${rm(R.total)}</div><div class="l">Jumlah Jualan</div></div><div class="stat"><div class="v">${R.count}</div><div class="l">Transaksi</div></div><div class="stat"><div class="v">${R.dQty}</div><div class="l">Daifuku (pcs)</div></div><div class="stat"><div class="v">${R.bQty}</div><div class="l">Mochi Bites (pack)</div></div></div>
+  if(R.pending)h+=`<div class="card" style="color:var(--orange);font-weight:700">⚠️ ${R.pending} sales not yet sent to the server. Make sure there is internet before closing.</div>`;
+  h+=`<div class="stat-grid"><div class="stat hero"><div class="v">${rm(R.total)}</div><div class="l">Total Sales</div></div><div class="stat"><div class="v">${R.count}</div><div class="l">Transactions</div></div><div class="stat"><div class="v">${R.dQty}</div><div class="l">Daifuku (pcs)</div></div><div class="stat"><div class="v">${R.bQty}</div><div class="l">Mochi Bites (pack)</div></div></div>
   ${stockCloseHtml()}
-  <div class="row"><div class="card"><div class="card-title">Ikut Bayaran</div>
+  <div class="row"><div class="card"><div class="card-title">By Payment</div>
   ${[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>`<div class="line"><span>${PAY_LABELS[k]}</span><b>${rm(R.byPay[k]||0)}</b></div>`).join('')}
   ${Object.keys(R.byWallet).length?`<p class="note">${Object.entries(R.byWallet).map(([w,v])=>esc(w)+': '+rm(v)).join(' · ')}</p>`:''}
-  ${R.discount>0?`<div class="line"><span>Diskaun diberi</span><b>${rm(R.discount)}</b></div>`:''}
-  ${R.voidCount?`<div class="line"><span>Void</span><b>${R.voidCount} (${rm(R.voidAmt)})</b></div>`:''}
+  ${R.discount>0?`<div class="line"><span>Discounts given</span><b>${rm(R.discount)}</b></div>`:''}
+  ${R.voidCount?`<div class="line"><span>Voided</span><b>${R.voidCount} (${rm(R.voidAmt)})</b></div>`:''}
   </div>
-  <div class="card"><div class="card-title">Kira Tunai Dalam Laci</div>
-  <div class="row"><div class="fg"><label class="label">Duit pecah awal (float)</label><input class="input" id="floatIn" type="number" inputmode="decimal" step="0.01" value="${prev?prev.opening_float:''}" placeholder="0.00" oninput="updCash()"></div>
-  <div class="fg"><label class="label">Tunai dikira</label><input class="input" id="countIn" type="number" inputmode="decimal" step="0.01" value="${prev?prev.cash_counted:''}" placeholder="0.00" oninput="updCash()"></div></div>
+  <div class="card"><div class="card-title">Cash Drawer Count</div>
+  <div class="row"><div class="fg"><label class="label">Opening float</label><input class="input" id="floatIn" type="number" inputmode="decimal" step="0.01" value="${prev?prev.opening_float:''}" placeholder="0.00" oninput="updCash()"></div>
+  <div class="fg"><label class="label">Cash counted</label><input class="input" id="countIn" type="number" inputmode="decimal" step="0.01" value="${prev?prev.cash_counted:''}" placeholder="0.00" oninput="updCash()"></div></div>
   <div id="cashRes"></div>
-  <div class="fg"><label class="label">Nota</label><input class="input" id="closeNote" value="${esc(prev?.notes||'')}" placeholder="Pilihan"></div>
-  <div class="btn-row"><button class="btn outline" onclick="printSummary()">🖨️ Cetak Laporan</button><button class="btn green" onclick="saveClosing()">${prev?'Kemaskini Tutup Kedai':'Simpan Tutup Kedai'}</button></div>
-  ${prev?`<p class="note">Kali terakhir disimpan oleh ${esc(prev.staff_name)} pada ${new Date(prev.created_at).toLocaleString('ms-MY')}</p>`:''}
+  <div class="fg"><label class="label">Notes</label><input class="input" id="closeNote" value="${esc(prev?.notes||'')}" placeholder="Optional"></div>
+  <div class="btn-row"><button class="btn outline" onclick="printSummary()">🖨️ Print Report</button><button class="btn green" onclick="saveClosing()">${prev?'Update Close Shop':'Save Close Shop'}</button></div>
+  ${prev?`<p class="note">Last saved by ${esc(prev.staff_name)} on ${new Date(prev.created_at).toLocaleString('en-GB')}</p>`:''}
   </div></div>
-  <div class="card"><div class="card-title">Item Terjual</div>${!R.items.length?'<div class="empty">Tiada.</div>':R.items.map(i=>`<div class="line"><span>${esc(i.name)} <span class="muted" style="font-size:.75rem">${i.cat==='daifuku'?'Daifuku':i.cat==='bites'?'Bites':'Lain'}</span></span><b>${i.qty} · ${rm(i.amount)}</b></div>`).join('')}</div>`;
+  <div class="card"><div class="card-title">Items Sold</div>${!R.items.length?'<div class="empty">None.</div>':R.items.map(i=>`<div class="line"><span>${esc(i.name)} <span class="muted" style="font-size:.75rem">${i.cat==='daifuku'?'Daifuku':i.cat==='bites'?'Bites':'Other'}</span></span><b>${i.qty} · ${rm(i.amount)}</b></div>`).join('')}</div>`;
   $('closeBody').innerHTML=h;updCash();updStockClose();
 }
 function buildStockClose(row,sold){
@@ -718,12 +718,12 @@ function buildStockClose(row,sold){
 }
 function stockCloseHtml(){
   const S=window._closeStock;
-  if(!S)return `<div class="card"><div class="card-title">Stok & Wastage</div><div class="note">Tiada stok masuk direkod untuk tarikh ni, jadi stok tak dikira. Guna tab Stok Masuk bila stok sampai.</div></div>`;
-  return `<div class="card"><div class="card-title">Stok & Wastage <span class="muted" style="font-size:.75rem;font-weight:600">${S.saved?'✓ dah disimpan':'Baki semua dibuang hujung hari'}</span></div>
-  <div style="overflow-x:auto"><table class="tbl"><tr><th>Flavour</th><th>Masuk</th><th>Jual</th><th>Baki</th><th>Buang</th><th>Makan/<br>Sampel</th><th>Beza</th></tr>
+  if(!S)return `<div class="card"><div class="card-title">Stock & Wastage</div><div class="note">No stock received on this date, so stock is not tracked. Use the Stock In tab when stock arrives.</div></div>`;
+  return `<div class="card"><div class="card-title">Stock & Wastage <span class="muted" style="font-size:.75rem;font-weight:600">${S.saved?'✓ saved':'All leftovers are discarded at end of day'}</span></div>
+  <div style="overflow-x:auto"><table class="tbl"><tr><th>Flavour</th><th>In</th><th>Sold</th><th>Left</th><th>Discard</th><th>Eaten/<br>Sample</th><th>Diff</th></tr>
   ${['daifuku','bites'].map(cat=>{const rs=S.rows.filter(r=>r.cat===cat);if(!rs.length)return'';return`<tr class="sec"><td colspan="7">${cat==='daifuku'?'Daifuku (pcs)':'Mochi Bites (pack)'}</td></tr>`+rs.map(r=>{const i=S.rows.indexOf(r);return`<tr><td>${esc(r.name)}</td><td>${r.rec}</td><td>${r.sold}</td><td><b>${r.left}</b></td><td><input type="number" inputmode="numeric" min="0" value="${r.buang}" oninput="window._closeStock.rows[${i}].buang=Math.max(0,parseInt(this.value)||0);updStockClose()"></td><td><input type="number" inputmode="numeric" min="0" value="${r.makan}" oninput="window._closeStock.rows[${i}].makan=Math.max(0,parseInt(this.value)||0);updStockClose()"></td><td id="bz${i}"></td></tr>`;}).join('');}).join('')}
   </table></div><div id="stkCloseSum" style="margin-top:10px"></div>
-  <p class="note">Baki = Masuk − Jual. Beza bukan 0 maksudnya ada jualan tak direkod atau stok tersilap kira.</p></div>`;
+  <p class="note">Left = In − Sold. A non-zero Diff means an unrecorded sale or a miscount.</p></div>`;
 }
 function stockCloseTotals(){
   const S=window._closeStock;if(!S)return null;const p={daifuku:+settings.daifuku_price||0,bites:+settings.bites_price||0};
@@ -734,7 +734,7 @@ function stockCloseTotals(){
 function updStockClose(){
   const S=window._closeStock;if(!S)return;
   S.rows.forEach((r,i)=>{const el=$('bz'+i);if(!el)return;const bz=r.left-r.buang-r.makan;el.innerHTML=bz===0?'<span style="color:var(--green-dark);font-weight:800">✓</span>':`<span style="color:var(--red);font-weight:800">${bz>0?'+':''}${bz}</span>`;});
-  const t=stockCloseTotals();const el=$('stkCloseSum');if(el)el.innerHTML=`<div class="line"><span>Dibuang</span><b>${t.dBuang} pcs · ${t.bBuang} pack · ${rm(t.amt)}</b></div><div class="line"><span>Makan / sampel</span><b>${t.dMakan} pcs · ${t.bMakan} pack</b></div>${t.diffItems?`<div class="line"><span>Flavour ada beza</span><b style="color:var(--red)">${t.diffItems}</b></div>`:''}`;
+  const t=stockCloseTotals();const el=$('stkCloseSum');if(el)el.innerHTML=`<div class="line"><span>Discarded</span><b>${t.dBuang} pcs · ${t.bBuang} pack · ${rm(t.amt)}</b></div><div class="line"><span>Eaten / sample</span><b>${t.dMakan} pcs · ${t.bMakan} pack</b></div>${t.diffItems?`<div class="line"><span>Flavours with diff</span><b style="color:var(--red)">${t.diffItems}</b></div>`:''}`;
 }
 function summarize(list){
   const R={total:0,count:0,dQty:0,bQty:0,lQty:0,byPay:{},byWallet:{},discount:0,voidCount:0,voidAmt:0,items:[],pending:0};
@@ -750,19 +750,19 @@ function summarize(list){
   R.total=r2(R.total);R.items=Object.values(it).sort((a,b)=>b.qty-a.qty);return R;
 }
 function cashCalc(){const R=window._closeSum||{byPay:{}};const fl=parseFloat($('floatIn')?.value)||0;const cnt=parseFloat($('countIn')?.value);const expected=r2(fl+(R.byPay.cash||0));return{fl,cnt:isNaN(cnt)?null:r2(cnt),expected,diff:isNaN(cnt)?null:r2(cnt-expected)};}
-function updCash(){const c=cashCalc();const el=$('cashRes');if(!el)return;el.innerHTML=`<div class="line"><span>Tunai sepatutnya (float + jualan tunai)</span><b>${rm(c.expected)}</b></div>${c.diff===null?'':`<div class="line"><span>Beza</span><b style="color:${Math.abs(c.diff)<0.01?'var(--green-dark)':c.diff<0?'var(--red)':'var(--orange)'}">${Math.abs(c.diff)<0.01?'Tepat ✓':(c.diff<0?'Kurang ':'Lebih ')+rm(Math.abs(c.diff))}</b></div>`}`;}
+function updCash(){const c=cashCalc();const el=$('cashRes');if(!el)return;el.innerHTML=`<div class="line"><span>Expected cash (float + cash sales)</span><b>${rm(c.expected)}</b></div>${c.diff===null?'':`<div class="line"><span>Difference</span><b style="color:${Math.abs(c.diff)<0.01?'var(--green-dark)':c.diff<0?'var(--red)':'var(--orange)'}">${Math.abs(c.diff)<0.01?'Exact ✓':(c.diff<0?'Short ':'Over ')+rm(Math.abs(c.diff))}</b></div>`}`;}
 async function saveClosing(){
   const R=window._closeSum;const c=cashCalc();
-  if(c.cnt===null)return toast('Masukkan tunai dikira','error');
+  if(c.cnt===null)return toast('Enter the cash counted','error');
   const row={close_date:closeDate,opening_float:c.fl,cash_counted:c.cnt,expected_cash:c.expected,cash_diff:c.diff,total_sales:R.total,txn_count:R.count,by_payment:R.byPay,items:R.items,notes:$('closeNote').value.trim(),staff_id:String(user.id),staff_name:user.name};
   const S=window._closeStock;
-  if(S){const t=stockCloseTotals();if(t.diffItems&&!confirm(t.diffItems+' flavour ada beza stok. Simpan juga?'))return;
+  if(S){const t=stockCloseTotals();if(t.diffItems&&!confirm(t.diffItems+' flavour(s) have a stock difference. Save anyway?'))return;
     const discard={},consume={};S.rows.forEach(r=>{if(r.buang)discard[r.k]=r.buang;if(r.makan)consume[r.k]=r.makan;});
     const {error:se}=await sb.from('mm_pos_stock_days').update({discard,consume,discard_amount:t.amt,consume_amount:t.makanAmt,closed:true,updated_at:new Date().toISOString()}).eq('stock_date',closeDate);
-    if(se)return toast('Gagal simpan stok: '+se.message,'error');}
+    if(se)return toast('Failed to save stock: '+se.message,'error');}
   const {error}=await sb.from('mm_pos_closings').insert(row);
-  if(error)return toast('Gagal: '+error.message,'error');
-  toast('Tutup kedai disimpan ✓','success');renderClose();
+  if(error)return toast('Failed: '+error.message,'error');
+  toast('Close shop saved ✓','success');renderClose();
 }
 
 // ===================== SETTINGS =====================
@@ -770,49 +770,49 @@ async function renderSettings(){
   const s=settings;
   $('view').innerHTML=`<div class="page"><div class="page-inner">
   <div class="row">
-  <div class="card"><div class="card-title">Harga</div>
-    <div class="row"><div class="fg"><label class="label">Daifuku / pcs (RM)</label><input class="input" id="st_dp" type="number" step="0.01" value="${s.daifuku_price}"></div>
+  <div class="card"><div class="card-title">Prices</div>
+    <div class="row"><div class="fg"><label class="label">Daifuku / pc (RM)</label><input class="input" id="st_dp" type="number" step="0.01" value="${s.daifuku_price}"></div>
     <div class="fg"><label class="label">Mochi Bites / pack (RM)</label><input class="input" id="st_bp" type="number" step="0.01" value="${s.bites_price}"></div></div>
-    <p class="note">Senarai flavour ikut Setup dalam Internal App. Flavour yang di-OFF tak keluar di POS.</p>
-    <div class="fg" style="margin-top:12px"><label class="label">Booth Kedai dalam Production Order</label><select class="select" id="st_booth"><option value="">— Pilih —</option></select></div>
-    <p class="note">Tak jumpa? Tambah booth "Kedai" dalam Internal App → Setup → Booth Management dulu.</p>
+    <p class="note">Flavours follow Setup in the Internal App. Flavours switched OFF are hidden in the POS.</p>
+    <div class="fg" style="margin-top:12px"><label class="label">Shop booth in Production Order</label><select class="select" id="st_booth"><option value="">— Select —</option></select></div>
+    <p class="note">Not listed? Add the shop as a booth in Internal App → Setup → Booth Management first.</p>
   </div>
-  <div class="card"><div class="card-title">Maklumat Resit</div>
-    <div class="fg"><label class="label">Nama kedai</label><input class="input" id="st_name" value="${esc(s.shop_name)}"></div>
-    <div class="fg"><label class="label">Alamat (satu baris)</label><input class="input" id="st_addr" value="${esc(s.shop_address)}"></div>
-    <div class="row"><div class="fg"><label class="label">No. telefon</label><input class="input" id="st_phone" value="${esc(s.shop_phone)}"></div>
-    <div class="fg"><label class="label">Saiz kertas</label><select class="select" id="st_paper"><option value="58" ${+s.paper===58?'selected':''}>58mm</option><option value="80" ${+s.paper===80?'selected':''}>80mm</option></select></div></div>
-    <div class="fg"><label class="label">Ayat bawah resit</label><input class="input" id="st_foot" value="${esc(s.receipt_footer)}"></div>
+  <div class="card"><div class="card-title">Receipt Details</div>
+    <div class="fg"><label class="label">Shop name</label><input class="input" id="st_name" value="${esc(s.shop_name)}"></div>
+    <div class="fg"><label class="label">Address (one line)</label><input class="input" id="st_addr" value="${esc(s.shop_address)}"></div>
+    <div class="row"><div class="fg"><label class="label">Phone no.</label><input class="input" id="st_phone" value="${esc(s.shop_phone)}"></div>
+    <div class="fg"><label class="label">Paper size</label><select class="select" id="st_paper"><option value="58" ${+s.paper===58?'selected':''}>58mm</option><option value="80" ${+s.paper===80?'selected':''}>80mm</option></select></div></div>
+    <div class="fg"><label class="label">Receipt footer</label><input class="input" id="st_foot" value="${esc(s.receipt_footer)}"></div>
   </div></div>
-  <button class="btn" style="width:100%;margin-bottom:14px" onclick="saveSettings()">Simpan Tetapan</button>
+  <button class="btn" style="width:100%;margin-bottom:14px" onclick="saveSettings()">Save Settings</button>
 
   <div class="row">
   <div class="card"><div class="card-title">DuitNow QR</div>
-    ${s.duitnow_qr?`<div class="qr-box"><img src="${s.duitnow_qr}" style="width:180px"></div>`:'<p class="note">Belum ada. Screenshot QR DuitNow kedai dari app bank, kemudian upload di sini.</p>'}
+    ${s.duitnow_qr?`<div class="qr-box"><img src="${s.duitnow_qr}" style="width:180px"></div>`:'<p class="note">Not set. Screenshot the shop DuitNow QR from your banking app, then upload it here.</p>'}
     <input type="file" accept="image/*" id="qrFile" class="hidden" onchange="uploadQR(this)">
-    <div class="btn-row"><button class="btn outline" onclick="$('qrFile').click()">${s.duitnow_qr?'Tukar QR':'Upload QR'}</button>${s.duitnow_qr?'<button class="btn outline" onclick="removeQR()">Buang</button>':''}</div>
+    <div class="btn-row"><button class="btn outline" onclick="$('qrFile').click()">${s.duitnow_qr?'Change QR':'Upload QR'}</button>${s.duitnow_qr?'<button class="btn outline" onclick="removeQR()">Remove</button>':''}</div>
   </div>
-  <div class="card"><div class="card-title">Printer Resit</div>
-    <div class="fg"><label class="label">Cara cetak</label><select class="select" id="pr_mode" onchange="printer.mode=this.value;savePrinter();renderSettings()">
-      <option value="bluetooth" ${printer.mode==='bluetooth'?'selected':''}>Bluetooth terus (BLE)</option>
-      <option value="rawbt" ${printer.mode==='rawbt'?'selected':''}>Melalui app RawBT</option>
-      <option value="none" ${printer.mode==='none'?'selected':''}>Tiada printer</option></select></div>
-    ${printer.mode==='bluetooth'?`<div class="line"><span>Printer</span><b>${printer.char?'✅ '+esc(printer.name):printer.name?'Tak bersambung ('+esc(printer.name)+')':'Belum pilih'}</b></div>
-      <div class="btn-row"><button class="btn outline" onclick="connectPrinter(true)">${printer.name?'Tukar / Sambung':'Pilih Printer'}</button></div>
-      <p class="note">${'bluetooth' in navigator?'Hidupkan printer & Bluetooth tablet. Kalau printer tak keluar dalam senarai, printer tu mungkin Bluetooth lama — tukar ke "Melalui app RawBT".':'⚠️ Browser ni tak support Bluetooth. Guna Chrome di tablet Android, atau pilih RawBT.'}</p>`:''}
-    ${printer.mode==='rawbt'?`<p class="note">1. Install <b>RawBT</b> dari Play Store.<br>2. Dalam RawBT, pair & pilih printer thermal.<br>3. Tekan Test Print di bawah. Kali pertama Chrome akan tanya nak buka RawBT — pilih "Always".</p>`:''}
-    ${printer.mode!=='none'?`<label class="switch"><span>Auto cetak lepas bayar</span><input type="checkbox" ${printer.auto?'checked':''} onchange="printer.auto=this.checked;savePrinter()"></label>
+  <div class="card"><div class="card-title">Receipt Printer</div>
+    <div class="fg"><label class="label">Print method</label><select class="select" id="pr_mode" onchange="printer.mode=this.value;savePrinter();renderSettings()">
+      <option value="bluetooth" ${printer.mode==='bluetooth'?'selected':''}>Bluetooth direct (BLE)</option>
+      <option value="rawbt" ${printer.mode==='rawbt'?'selected':''}>Via RawBT app</option>
+      <option value="none" ${printer.mode==='none'?'selected':''}>No printer</option></select></div>
+    ${printer.mode==='bluetooth'?`<div class="line"><span>Printer</span><b>${printer.char?'✅ '+esc(printer.name):printer.name?'Not connected ('+esc(printer.name)+')':'Not selected'}</b></div>
+      <div class="btn-row"><button class="btn outline" onclick="connectPrinter(true)">${printer.name?'Change / Connect':'Select Printer'}</button></div>
+      <p class="note">${'bluetooth' in navigator?'Turn on the printer and tablet Bluetooth. If the printer is not listed, it may be older Bluetooth — switch to "Via RawBT app".':'⚠️ This browser does not support Bluetooth. Use Chrome on an Android tablet, or choose RawBT.'}</p>`:''}
+    ${printer.mode==='rawbt'?`<p class="note">1. Install <b>RawBT</b> from the Play Store.<br>2. In RawBT, pair and select the thermal printer.<br>3. Tap Test Print below. The first time, Chrome will ask to open RawBT — choose "Always".</p>`:''}
+    ${printer.mode!=='none'?`<label class="switch"><span>Auto-print after payment</span><input type="checkbox" ${printer.auto?'checked':''} onchange="printer.auto=this.checked;savePrinter()"></label>
       <div class="btn-row"><button class="btn outline" onclick="testPrint()">Test Print</button></div>`:''}
   </div></div>
 
-  <div class="card"><div class="card-title">Staff POS</div>
-    <p class="note" style="margin:-4px 0 10px">Tanda staff cafe yang boleh login POS. Owner & Manager sentiasa boleh. Kalau tiada yang ditanda, semua staff keluar.</p>
+  <div class="card"><div class="card-title">POS Staff</div>
+    <p class="note" style="margin:-4px 0 10px">Tick the cafe staff who can log in to the POS. Owners and Managers can always log in. If none are ticked, all staff are shown.</p>
     <div id="staffList" class="stk-grid"><div class="muted">Loading...</div></div>
-    <div class="btn-row"><button class="btn" onclick="savePosStaff()">Simpan Staff POS</button></div>
-    <p class="note">Staff cafe baru? Tambah dulu dalam Internal App → Setup (role Staff), kemudian tanda di sini.</p>
+    <div class="btn-row"><button class="btn" onclick="savePosStaff()">Save POS Staff</button></div>
+    <p class="note">New cafe staff? Add them in Internal App → Setup (role Staff) first, then tick them here.</p>
   </div>
 
-  <div class="card"><div class="card-title">Item Lain (minuman, add-on, box) <button class="btn sm" onclick="editItem()">+ Tambah</button></div>
+  <div class="card"><div class="card-title">Other Items (drinks, add-ons, boxes) <button class="btn sm" onclick="editItem()">+ Add</button></div>
     <div id="itemList"><div class="muted">Loading...</div></div>
   </div>
   </div></div>`;
@@ -822,8 +822,8 @@ async function saveSettings(){
   const ns={pos_booth_id:$('st_booth')?.value||'',daifuku_price:parseFloat($('st_dp').value)||0,bites_price:parseFloat($('st_bp').value)||0,shop_name:$('st_name').value.trim()||'Mika Mochi',shop_address:$('st_addr').value.trim(),shop_phone:$('st_phone').value.trim(),receipt_footer:$('st_foot').value.trim(),paper:parseInt($('st_paper').value)||58};
   const rows=Object.entries(ns).map(([key,value])=>({key,value,updated_at:new Date().toISOString()}));
   const {error}=await sb.from('mm_pos_settings').upsert(rows,{onConflict:'key'});
-  if(error)return toast('Gagal: '+error.message,'error');
-  settings={...settings,...ns};lsSet('mm_pos_menu_cache',{menu,settings});toast('Tetapan disimpan ✓','success');
+  if(error)return toast('Failed: '+error.message,'error');
+  settings={...settings,...ns};lsSet('mm_pos_menu_cache',{menu,settings});toast('Settings saved ✓','success');
 }
 function uploadQR(inp){
   const f=inp.files&&inp.files[0];if(!f)return;
@@ -834,57 +834,57 @@ function uploadQR(inp){
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
     const data=c.toDataURL('image/jpeg',0.88);
     const {error}=await sb.from('mm_pos_settings').upsert({key:'duitnow_qr',value:data,updated_at:new Date().toISOString()},{onConflict:'key'});
-    if(error)return toast('Gagal: '+error.message,'error');
-    settings.duitnow_qr=data;lsSet('mm_pos_menu_cache',{menu,settings});toast('QR disimpan ✓','success');renderSettings();
+    if(error)return toast('Failed: '+error.message,'error');
+    settings.duitnow_qr=data;lsSet('mm_pos_menu_cache',{menu,settings});toast('QR saved ✓','success');renderSettings();
   };
   img.src=url;
 }
-async function removeQR(){if(!confirm('Buang QR?'))return;await sb.from('mm_pos_settings').upsert({key:'duitnow_qr',value:'',updated_at:new Date().toISOString()},{onConflict:'key'});settings.duitnow_qr='';lsSet('mm_pos_menu_cache',{menu,settings});renderSettings();}
+async function removeQR(){if(!confirm('Remove QR?'))return;await sb.from('mm_pos_settings').upsert({key:'duitnow_qr',value:'',updated_at:new Date().toISOString()},{onConflict:'key'});settings.duitnow_qr='';lsSet('mm_pos_menu_cache',{menu,settings});renderSettings();}
 async function loadBoothOptions(){
   const sel=$('st_booth');if(!sel)return;
   const {data:rows}=await sb.from('mm_internal_orders').select('notes').eq('order_no','config_booths').order('created_at',{ascending:false}).limit(1);const data=rows&&rows[0];
   let bs=[{id:'booth_setia_alam',name:'Booth Setia Alam'},{id:'booth_tour',name:'Booth Tour'}];
   if(data&&data.notes){try{bs=JSON.parse(data.notes);}catch(e){}}
-  sel.innerHTML='<option value="">— Pilih —</option>'+bs.map(b=>`<option value="${esc(b.id)}" ${settings.pos_booth_id===b.id?'selected':''}>${esc(b.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— Select —</option>'+bs.map(b=>`<option value="${esc(b.id)}" ${settings.pos_booth_id===b.id?'selected':''}>${esc(b.name)}</option>`).join('');
 }
 async function loadStaffList(){
   const el=$('staffList');if(!el)return;
   const {data,error}=await sb.from('mm_users').select('id,name,role').eq('active',true).order('name');
   if(error){el.innerHTML=`<p class="note" style="color:var(--red)">${esc(error.message)}</p>`;return;}
   const sel=(settings.pos_staff||[]).map(String);
-  el.innerHTML=(data||[]).map(u=>{const always=['owner','manager'].includes(u.role);return`<label class="stk-row" style="cursor:pointer"><span class="n">${esc(u.name)}<div class="o">${esc(ROLE_LABELS[u.role]||u.role)}${always?' · sentiasa boleh':''}</div></span><input type="checkbox" class="pos-staff-cb" value="${esc(u.id)}" ${always?'checked disabled':sel.includes(String(u.id))?'checked':''} style="width:22px;height:22px;accent-color:var(--pink)"></label>`;}).join('');
+  el.innerHTML=(data||[]).map(u=>{const always=['owner','manager'].includes(u.role);return`<label class="stk-row" style="cursor:pointer"><span class="n">${esc(u.name)}<div class="o">${esc(ROLE_LABELS[u.role]||u.role)}${always?' · always allowed':''}</div></span><input type="checkbox" class="pos-staff-cb" value="${esc(u.id)}" ${always?'checked disabled':sel.includes(String(u.id))?'checked':''} style="width:22px;height:22px;accent-color:var(--pink)"></label>`;}).join('');
 }
 async function savePosStaff(){
   const ids=[...document.querySelectorAll('.pos-staff-cb:not(:disabled):checked')].map(c=>c.value);
   const {error}=await sb.from('mm_pos_settings').upsert({key:'pos_staff',value:ids,updated_at:new Date().toISOString()},{onConflict:'key'});
-  if(error)return toast('Gagal: '+error.message,'error');
-  settings.pos_staff=ids;lsSet('mm_pos_menu_cache',{menu,settings});toast('Staff POS disimpan ✓','success');
+  if(error)return toast('Failed: '+error.message,'error');
+  settings.pos_staff=ids;lsSet('mm_pos_menu_cache',{menu,settings});toast('POS staff saved ✓','success');
 }
 let _items=[];
 async function loadItemList(){
   const {data,error}=await sb.from('mm_pos_items').select('*').order('sort_order',{ascending:true});
   const el=$('itemList');if(!el)return;
-  if(error){el.innerHTML=`<p class="note" style="color:var(--red)">⚠️ ${esc(error.message)} — run SQL POS dulu.</p>`;return;}
+  if(error){el.innerHTML=`<p class="note" style="color:var(--red)">⚠️ ${esc(error.message)} — run the POS SQL first.</p>`;return;}
   _items=data||[];
-  el.innerHTML=!_items.length?'<div class="empty">Belum ada item. Tambah minuman atau item lain di sini.</div>':_items.map(i=>`<div class="list-item"><div class="li-main"><div class="li-title" style="${i.active===false?'opacity:.45;text-decoration:line-through':''}">${esc(i.name)}</div><div class="li-meta">${esc(LAIN_CATS[i.category]||i.category)} · ${rm(i.price)}</div></div><button class="btn sm outline" onclick="editItem('${esc(i.id)}')">Edit</button></div>`).join('');
+  el.innerHTML=!_items.length?'<div class="empty">No items yet. Add drinks or other items here.</div>':_items.map(i=>`<div class="list-item"><div class="li-main"><div class="li-title" style="${i.active===false?'opacity:.45;text-decoration:line-through':''}">${esc(i.name)}</div><div class="li-meta">${esc(LAIN_CATS[i.category]||i.category)} · ${rm(i.price)}</div></div><button class="btn sm outline" onclick="editItem('${esc(i.id)}')">Edit</button></div>`).join('');
 }
 function editItem(id){
   const i=_items.find(x=>x.id===id)||{name:'',price:'',category:'minuman',active:true,sort_order:_items.length};
-  openModal(`<h2>${id?'Edit Item':'Item Baru'} <button class="x-btn" onclick="closeModal()">✕</button></h2>
-  <div class="fg"><label class="label">Nama</label><input class="input" id="it_name" value="${esc(i.name)}" placeholder="contoh: Iced Matcha Latte"></div>
-  <div class="row"><div class="fg"><label class="label">Harga (RM)</label><input class="input" id="it_price" type="number" step="0.01" value="${i.price}"></div>
-  <div class="fg"><label class="label">Kategori</label><select class="select" id="it_cat">${Object.entries(LAIN_CATS).map(([k,v])=>`<option value="${k}" ${i.category===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
-  <label class="switch"><span>Aktif (keluar di POS)</span><input type="checkbox" id="it_active" ${i.active!==false?'checked':''}></label>
-  <div class="btn-row">${id?`<button class="btn red" onclick="deleteItem('${esc(id)}')">Padam</button>`:''}<button class="btn outline" onclick="closeModal()">Batal</button><button class="btn" onclick="saveItem(${id?`'${esc(id)}'`:'null'})">Simpan</button></div>`);
+  openModal(`<h2>${id?'Edit Item':'New Item'} <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="fg"><label class="label">Name</label><input class="input" id="it_name" value="${esc(i.name)}" placeholder="e.g. Iced Matcha Latte"></div>
+  <div class="row"><div class="fg"><label class="label">Price (RM)</label><input class="input" id="it_price" type="number" step="0.01" value="${i.price}"></div>
+  <div class="fg"><label class="label">Category</label><select class="select" id="it_cat">${Object.entries(LAIN_CATS).map(([k,v])=>`<option value="${k}" ${i.category===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
+  <label class="switch"><span>Active (shown in POS)</span><input type="checkbox" id="it_active" ${i.active!==false?'checked':''}></label>
+  <div class="btn-row">${id?`<button class="btn red" onclick="deleteItem('${esc(id)}')">Delete</button>`:''}<button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveItem(${id?`'${esc(id)}'`:'null'})">Save</button></div>`);
 }
 async function saveItem(id){
   const row={name:$('it_name').value.trim(),price:parseFloat($('it_price').value)||0,category:$('it_cat').value,active:$('it_active').checked};
-  if(!row.name)return toast('Nama wajib','error');
+  if(!row.name)return toast('Name is required','error');
   const q=id?sb.from('mm_pos_items').update(row).eq('id',id):sb.from('mm_pos_items').insert({...row,sort_order:_items.length});
-  const {error}=await q;if(error)return toast('Gagal: '+error.message,'error');
-  closeModal();toast('Item disimpan ✓','success');await loadMenu();loadItemList();
+  const {error}=await q;if(error)return toast('Failed: '+error.message,'error');
+  closeModal();toast('Item saved ✓','success');await loadMenu();loadItemList();
 }
-async function deleteItem(id){if(!confirm('Padam item ni? (Jualan lama tak terjejas)'))return;const {error}=await sb.from('mm_pos_items').delete().eq('id',id);if(error)return toast('Gagal: '+error.message,'error');closeModal();await loadMenu();loadItemList();}
+async function deleteItem(id){if(!confirm('Delete this item? (Past sales are not affected)'))return;const {error}=await sb.from('mm_pos_items').delete().eq('id',id);if(error)return toast('Failed: '+error.message,'error');closeModal();await loadMenu();loadItemList();}
 
 // ===================== RECEIPT TEXT =====================
 function W(){return +settings.paper===80?48:32;}
@@ -900,10 +900,10 @@ function receiptLines(s){
   if(settings.shop_address)wrap(settings.shop_address).forEach(x=>L.push({t:x,c:1}));
   if(settings.shop_phone)L.push({t:'Tel: '+settings.shop_phone,c:1});
   L.push({t:dash()});
-  L.push({t:padLR('Resit: '+s.receipt_no,'')});
+  L.push({t:padLR('Receipt: '+s.receipt_no,'')});
   L.push({t:padLR(d.toLocaleDateString('en-GB'),d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))});
   L.push({t:'Staff: '+(s.staff_name||'')});
-  if(s.voided)L.push({t:'*** DIBATALKAN (VOID) ***',c:1,b:1});
+  if(s.voided)L.push({t:'*** VOIDED ***',c:1,b:1});
   L.push({t:dash()});
   (s.items||[]).forEach(i=>{
     const pre=i.cat==='bites'?'Bites ':i.cat==='daifuku'?'':'';
@@ -912,10 +912,10 @@ function receiptLines(s){
   });
   L.push({t:dash()});
   L.push({t:padLR('Subtotal',(+s.subtotal).toFixed(2))});
-  if(+s.discount>0)L.push({t:padLR('Diskaun','-'+(+s.discount).toFixed(2))});
-  L.push({t:padLR('JUMLAH','RM '+(+s.total).toFixed(2),Math.floor(W()/2)),big:1,b:1});
-  L.push({t:padLR('Bayaran',s.payment_method==='duitnow'?'QR':(PAY_LABELS[s.payment_method]||s.payment_method)+(s.payment_detail?' ('+s.payment_detail+')':''))});
-  if(s.payment_method==='cash'&&s.cash_received!=null){L.push({t:padLR('Tunai',(+s.cash_received).toFixed(2))});L.push({t:padLR('Baki',(+s.change_given).toFixed(2))});}
+  if(+s.discount>0)L.push({t:padLR('Discount','-'+(+s.discount).toFixed(2))});
+  L.push({t:padLR('TOTAL','RM '+(+s.total).toFixed(2),Math.floor(W()/2)),big:1,b:1});
+  L.push({t:padLR('Payment',s.payment_method==='duitnow'?'QR':(PAY_LABELS[s.payment_method]||s.payment_method)+(s.payment_detail?' ('+s.payment_detail+')':''))});
+  if(s.payment_method==='cash'&&s.cash_received!=null){L.push({t:padLR('Cash',(+s.cash_received).toFixed(2))});L.push({t:padLR('Change',(+s.change_given).toFixed(2))});}
   L.push({t:dash()});
   if(settings.receipt_footer)wrap(settings.receipt_footer).forEach(x=>L.push({t:x,c:1}));
   L.push({t:'@mika_mochi.my',c:1});
@@ -948,10 +948,10 @@ function autoPrintOn(){return printer.auto&&(printer.mode==='rawbt'||(printer.mo
 function savePrinter(){lsSet('mm_pos_printer',{mode:printer.mode,auto:printer.auto,name:printer.name,id:printer.id,chunk:printer.chunk});updatePrinterChip();}
 function updatePrinterChip(){
   const d=$('prDot'),l=$('prLbl');if(!d)return;
-  if(printer.mode==='none'){d.className='dot';l.textContent='Tiada printer';}
+  if(printer.mode==='none'){d.className='dot';l.textContent='No printer';}
   else if(printer.mode==='rawbt'){d.className='dot ok';l.textContent='RawBT';}
   else if(printer.char){d.className='dot ok';l.textContent=printer.name||'Printer';}
-  else{d.className='dot bad';l.textContent=printer.name?'Sambung printer':'Pilih printer';}
+  else{d.className='dot bad';l.textContent=printer.name?'Connect printer':'Select printer';}
 }
 function printerChipTap(){if(printer.mode==='bluetooth'&&!printer.char)connectPrinter(!printer.name);else if(isMgr())go('settings');}
 async function findWritable(server){
@@ -968,24 +968,24 @@ async function attach(device){
   device.addEventListener('gattserverdisconnected',()=>{printer.char=null;updatePrinterChip();});
   const server=await device.gatt.connect();
   const ch=await findWritable(server);
-  if(!ch)throw new Error('Printer tak support (tiada characteristic untuk tulis)');
+  if(!ch)throw new Error('Printer not supported (no writable characteristic)');
   printer.char=ch;printer.name=device.name||'Printer';printer.id=device.id;savePrinter();
 }
 async function connectPrinter(pickNew){
-  if(!('bluetooth' in navigator)){toast('Bluetooth tak disokong browser ni. Guna Chrome Android / RawBT.','error');return false;}
+  if(!('bluetooth' in navigator)){toast('Bluetooth is not supported in this browser. Use Chrome on Android / RawBT.','error');return false;}
   try{
     let device=null;
     if(!pickNew&&printer.device)device=printer.device;
     if(!device&&!pickNew&&navigator.bluetooth.getDevices){const ds=await navigator.bluetooth.getDevices();device=ds.find(x=>x.id===printer.id)||null;}
     if(!device)device=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:BLE_SERVICES});
-    toast('Menyambung '+(device.name||'printer')+'...');
+    toast('Connecting '+(device.name||'printer')+'...');
     await attach(device);
-    toast('Printer bersambung ✓','success');
+    toast('Printer connected ✓','success');
     if(curView==='settings')renderSettings();
     return true;
   }catch(e){
     console.warn(e);
-    if(e.name!=='NotFoundError')toast('Gagal sambung: '+(e.message||e),'error');
+    if(e.name!=='NotFoundError')toast('Connection failed: '+(e.message||e),'error');
     updatePrinterChip();return false;
   }
 }
@@ -1010,11 +1010,11 @@ function rawbtSend(bytes){
   window.location.href='intent:base64,'+b64+'#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
 }
 async function printBytes(bytes){
-  if(printer.mode==='none'){toast('Printer tak diset. Pergi Tetapan.','error');return;}
+  if(printer.mode==='none'){toast('No printer set up. Go to Settings.','error');return;}
   if(printer.mode==='rawbt'){rawbtSend(bytes);return;}
   if(!printer.char){const ok=await connectPrinter(false);if(!ok)return;}
   try{await bleWrite(bytes);}
-  catch(e){printer.char=null;updatePrinterChip();toast('Gagal cetak: '+(e.message||e)+'. Tekan chip printer untuk sambung semula.','error');}
+  catch(e){printer.char=null;updatePrinterChip();toast('Print failed: '+(e.message||e)+'. Tap the printer chip to reconnect.','error');}
 }
 async function printReceipt(s){
   if(typeof s==='string')s=(window._hist||[]).find(x=>x.client_id===s);
@@ -1022,22 +1022,22 @@ async function printReceipt(s){
   await printBytes(escpos(receiptLines(s)));
 }
 function testPrint(){
-  const L=[{t:settings.shop_name||'Mika Mochi',big:1,c:1,b:1},{t:'TEST PRINT',c:1,b:1},{t:dash()},{t:padLR('Kiri','Kanan')},{t:'Kertas '+settings.paper+'mm / '+W()+' aksara'},{t:'1234567890'.repeat(5).slice(0,W())},{t:dash()},{t:'Printer OK :)',c:1}];
+  const L=[{t:settings.shop_name||'Mika Mochi',big:1,c:1,b:1},{t:'TEST PRINT',c:1,b:1},{t:dash()},{t:padLR('Left','Right')},{t:'Paper '+settings.paper+'mm / '+W()+' chars'},{t:'1234567890'.repeat(5).slice(0,W())},{t:dash()},{t:'Printer OK :)',c:1}];
   printBytes(escpos(L));
 }
 function printSummary(){
   const R=window._closeSum;if(!R)return;const c=cashCalc();
-  const L=[{t:settings.shop_name||'Mika Mochi',big:1,c:1,b:1},{t:'LAPORAN TUTUP KEDAI',c:1,b:1},{t:closeDate,c:1},{t:dash()},
-    {t:padLR('Transaksi',String(R.count))},{t:padLR('Daifuku (pcs)',String(R.dQty))},{t:padLR('Mochi Bites',String(R.bQty))},{t:padLR('Lain-lain',String(R.lQty))},{t:dash()},
+  const L=[{t:settings.shop_name||'Mika Mochi',big:1,c:1,b:1},{t:'CLOSE SHOP REPORT',c:1,b:1},{t:closeDate,c:1},{t:dash()},
+    {t:padLR('Transactions',String(R.count))},{t:padLR('Daifuku (pcs)',String(R.dQty))},{t:padLR('Mochi Bites',String(R.bQty))},{t:padLR('Other',String(R.lQty))},{t:dash()},
     ...[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>({t:padLR(k==='duitnow'?'QR':PAY_LABELS[k],(R.byPay[k]||0).toFixed(2))})),
-    ...(R.discount>0?[{t:padLR('Diskaun',R.discount.toFixed(2))}]:[]),
+    ...(R.discount>0?[{t:padLR('Discount',R.discount.toFixed(2))}]:[]),
     ...(R.voidCount?[{t:padLR('Void ('+R.voidCount+')',R.voidAmt.toFixed(2))}]:[]),
-    {t:padLR('JUMLAH','RM '+R.total.toFixed(2),Math.floor(W()/2)),big:1,b:1},{t:dash()},
-    {t:padLR('Float',c.fl.toFixed(2))},{t:padLR('Tunai sepatutnya',c.expected.toFixed(2))},
-    ...(c.cnt!==null?[{t:padLR('Tunai dikira',c.cnt.toFixed(2))},{t:padLR('Beza',c.diff.toFixed(2)),b:1}]:[]),
+    {t:padLR('TOTAL','RM '+R.total.toFixed(2),Math.floor(W()/2)),big:1,b:1},{t:dash()},
+    {t:padLR('Float',c.fl.toFixed(2))},{t:padLR('Expected cash',c.expected.toFixed(2))},
+    ...(c.cnt!==null?[{t:padLR('Cash counted',c.cnt.toFixed(2))},{t:padLR('Difference',c.diff.toFixed(2)),b:1}]:[]),
     {t:dash()},...R.items.map(i=>({t:padLR(i.name.slice(0,W()-8),String(i.qty))})),{t:dash()},
-    ...(window._closeStock?(()=>{const t=stockCloseTotals();return[{t:'WASTAGE',b:1},{t:padLR('Buang Daifuku',String(t.dBuang))},{t:padLR('Buang Bites',String(t.bBuang))},{t:padLR('Nilai buang','RM '+t.amt.toFixed(2))},{t:padLR('Makan/sampel',t.dMakan+' pcs / '+t.bMakan+' pk')},{t:dash()}];})():[]),
-    {t:'Oleh: '+user.name},{t:new Date().toLocaleString('en-GB')}];
+    ...(window._closeStock?(()=>{const t=stockCloseTotals();return[{t:'WASTAGE',b:1},{t:padLR('Discard Daifuku',String(t.dBuang))},{t:padLR('Discard Bites',String(t.bBuang))},{t:padLR('Discard value','RM '+t.amt.toFixed(2))},{t:padLR('Eaten/sample',t.dMakan+' pcs / '+t.bMakan+' pk')},{t:dash()}];})():[]),
+    {t:'By: '+user.name},{t:new Date().toLocaleString('en-GB')}];
   printBytes(escpos(L));
 }
 
