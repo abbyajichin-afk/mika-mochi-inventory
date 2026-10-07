@@ -335,8 +335,9 @@ async function loadMenu(){
     if(!fl.error){
       const all=fl.data||[];
       const d=all.filter(f=>f.type==='daifuku');const b=all.filter(f=>f.type==='bites');
-      if(d.length)menu.daifuku=d.filter(f=>!off['daifuku|'+f.name]).map(f=>f.name);
-      menu.bites=(b.length?b.map(f=>f.name):FALLBACK_BITES).filter(n=>!off['bites|'+n]);
+      const uniq=a=>[...new Set(a)];
+      if(d.length)menu.daifuku=uniq(d.filter(f=>!off['daifuku|'+f.name]).map(f=>f.name));
+      menu.bites=uniq((b.length?b.map(f=>f.name):FALLBACK_BITES).filter(n=>!off['bites|'+n]));
     }
     if(!it.error)menu.lain=(it.data||[]).filter(i=>i.active!==false).map(i=>({id:i.id,name:i.name,price:+i.price||0,category:i.category||'lain'}));
     if(!se.error){const s={};(se.data||[]).forEach(r=>s[r.key]=r.value);settings={...DEFAULT_SETTINGS,...s};}
