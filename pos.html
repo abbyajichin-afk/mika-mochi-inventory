@@ -254,6 +254,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="top-right">
       <div class="chip" id="netChip" title="Connection"><span class="dot" id="netDot"></span><span class="lbl" id="netLbl">Online</span></div>
       <button class="chip" id="printerChip" onclick="printerChipTap()"><span class="dot" id="prDot"></span><span class="lbl" id="prLbl">Printer</span></button>
+      <button class="chip hidden" id="drawerChip" onclick="manualOpenDrawer()" title="Open cash drawer">💵 <span class="lbl">Drawer</span></button>
       <button class="icon-btn" onclick="toggleFullscreen()" title="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
       <button class="chip" onclick="logout()"><span id="userLbl">—</span> · Log out</button>
     </div>
@@ -541,7 +542,8 @@ async function confirmPay(){
   showDone(sale);
   lockModal();
   flushQueue();
-  if(autoPrintOn())printReceipt(sale);
+  const needDrawer=drawerOn()&&(sale.payment_method==='cash'||sale.payment_method==='split');
+  if(autoPrintOn())printReceipt(sale,needDrawer);else if(needDrawer)openDrawer();
 }
 function showDone(sale){
   openModal(`<div class="done"><div class="tick">✓</div>
@@ -742,8 +744,8 @@ async function renderClose(){
   $('view').innerHTML=`<div class="page"><div class="page-inner">
   <div class="card"><div class="row" style="align-items:flex-end"><div><label class="label">Date</label><input class="input" type="date" value="${closeDate}" onchange="closeDate=this.value;renderClose()"></div><div style="flex:0"><button class="btn outline" onclick="closeDate=dateStr();renderClose()">Today</button></div></div></div>
   <div id="closeBody"><div class="card muted">Loading...</div></div></div></div>`;
-  const [{list,error},cl,st]=await Promise.all([fetchSales(closeDate,closeDate),sb.from('mm_pos_closings').select('*').eq('close_date',closeDate).order('created_at',{ascending:false}).limit(1),sb.from('mm_pos_stock_days').select('*').eq('stock_date',closeDate).maybeSingle()]);
-  const R=summarize(list);
+  const [{list,error},cl,st,dl]=await Promise.all([fetchSales(closeDate,closeDate),sb.from('mm_pos_closings').select('*').eq('close_date',closeDate).order('created_at',{ascending:false}).limit(1),sb.from('mm_pos_stock_days').select('*').eq('stock_date',closeDate).maybeSingle(),sb.from('mm_pos_drawer_log').select('*').eq('log_date',closeDate).order('opened_at',{ascending:true})]);
+  const R=summarize(list);R.drawerOpens=dl&&!dl.error?(dl.data||[]):[];
   window._closeStock=buildStockClose(st.data,soldMap(list));
   const prev=cl.data&&cl.data[0];
   window._closeSum=R;
@@ -769,6 +771,7 @@ async function renderClose(){
   <div class="btn-row"><button class="btn outline" onclick="printSummary()">🖨️ Print Report</button><button class="btn green" onclick="saveClosing()">${prev?'Update Close Shop':'Save Close Shop'}</button></div>
   ${prev?`<p class="note">Last saved by ${esc(prev.staff_name)} on ${new Date(prev.created_at).toLocaleString('en-GB')}</p>`:''}
   </div></div>
+  ${R.drawerOpens.length?`<div class="card"><div class="card-title">💵 Drawer opened without a sale <span class="pill pending">${R.drawerOpens.length}</span></div>${R.drawerOpens.map(d=>`<div class="line"><span>${timeStr(new Date(d.opened_at))} · <b>${esc(d.staff_name||'-')}</b></span><span class="muted">${esc(d.reason||'')}</span></div>`).join('')}</div>`:''}
   ${(R.voids||[]).length?`<div class="card"><div class="card-title">Voided Sales <span class="pill void">${R.voids.length}</span></div>${R.voids.map(v=>`<div class="list-item"><div class="li-main"><div class="li-title">${esc(v.receipt_no)} · ${rm(v.total)}</div><div class="li-meta">Sold ${timeStr(new Date(v.created_at))} by ${esc(v.staff_name||'-')} · Voided by <b>${esc(v.voided_by||'-')}</b>${v.voided_at?' at '+timeStr(new Date(v.voided_at)):''} · ${esc(v.void_reason||'')}</div></div></div>`).join('')}</div>`:''}
   <div class="card"><div class="card-title">Items Sold</div>${!R.items.length?'<div class="empty">None.</div>':R.items.map(i=>`<div class="line"><span>${esc(i.name)} <span class="muted" style="font-size:.75rem">${i.cat==='daifuku'?'Daifuku':i.cat==='bites'?'Bites':'Other'}</span></span><b>${i.qty} · ${rm(i.amount)}</b></div>`).join('')}</div>`;
   $('closeBody').innerHTML=h;updCash();updStockClose();
@@ -869,7 +872,13 @@ async function renderSettings(){
       <p class="note">${'bluetooth' in navigator?'Turn on the printer and tablet Bluetooth. If the printer is not listed, it may be older Bluetooth — switch to "Via RawBT app".':'⚠️ This browser does not support Bluetooth. Use Chrome on an Android tablet, or choose RawBT.'}</p>`:''}
     ${printer.mode==='rawbt'?`<p class="note">1. Install <b>RawBT</b> from the Play Store.<br>2. In RawBT, pair and select the thermal printer.<br>3. Tap Test Print below. The first time, Chrome will ask to open RawBT — choose "Always".</p>`:''}
     ${printer.mode!=='none'?`<label class="switch"><span>Auto-print after payment</span><input type="checkbox" ${printer.auto?'checked':''} onchange="printer.auto=this.checked;savePrinter()"></label>
-      <div class="btn-row"><button class="btn outline" onclick="testPrint()">Test Print</button></div>`:''}
+      <div class="btn-row"><button class="btn outline" onclick="testPrint()">Test Print</button></div>
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">
+      <label class="switch"><span><b>💵 Cash drawer</b> plugged into the printer (DK port)</span><input type="checkbox" ${printer.drawer?'checked':''} onchange="printer.drawer=this.checked;savePrinter();renderSettings()"></label>
+      ${printer.drawer?`<p class="note">Opens automatically after Cash and Cash + QR payments. Staff can also open it with the 💵 Drawer button at the top (they must give a reason, and it is logged in Close Shop).</p>
+      <div class="row" style="align-items:flex-end;margin-top:8px"><div class="fg" style="margin:0"><label class="label">Drawer pin</label><select class="select" onchange="printer.pin=+this.value;savePrinter()"><option value="0" ${!printer.pin?'selected':''}>Pin 2 (most drawers)</option><option value="1" ${printer.pin?'selected':''}>Pin 5</option></select></div>
+      <div style="flex:0"><button class="btn outline" onclick="openDrawer()" style="white-space:nowrap">Test Open Drawer</button></div></div>
+      <p class="note">If the drawer doesn't pop open, switch the pin and test again.</p>`:''}</div>`:''}
   </div></div>
 
   <div class="card"><div class="card-title">Loyalty Stamp Card</div>
@@ -1022,11 +1031,12 @@ function escpos(lines){
 
 // ===================== PRINTER =====================
 const BLE_SERVICES=['000018f0-0000-1000-8000-00805f9b34fb','0000ff00-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb','0000fee7-0000-1000-8000-00805f9b34fb','0000ae30-0000-1000-8000-00805f9b34fb','e7810a71-73ae-499d-8c15-faa9aef0c3f2','49535343-fe7d-4ae5-8fa9-9fafd205e455','000018f1-0000-1000-8000-00805f9b34fb'];
-let printer={mode:'bluetooth',auto:true,name:'',id:'',device:null,char:null,chunk:180,...lsGet('mm_pos_printer',{})};
+let printer={mode:'bluetooth',auto:true,name:'',id:'',device:null,char:null,chunk:180,drawer:false,pin:0,...lsGet('mm_pos_printer',{})};
 printer.device=null;printer.char=null;
 function autoPrintOn(){return printer.auto&&(printer.mode==='rawbt'||(printer.mode==='bluetooth'&&!!printer.name));}
-function savePrinter(){lsSet('mm_pos_printer',{mode:printer.mode,auto:printer.auto,name:printer.name,id:printer.id,chunk:printer.chunk});updatePrinterChip();}
+function savePrinter(){lsSet('mm_pos_printer',{mode:printer.mode,auto:printer.auto,name:printer.name,id:printer.id,chunk:printer.chunk,drawer:printer.drawer,pin:printer.pin});updatePrinterChip();}
 function updatePrinterChip(){
+  const dc=$('drawerChip');if(dc)dc.classList.toggle('hidden',!drawerOn());
   const d=$('prDot'),l=$('prLbl');if(!d)return;
   if(printer.mode==='none'){d.className='dot';l.textContent='No printer';}
   else if(printer.mode==='rawbt'){d.className='dot ok';l.textContent='RawBT';}
@@ -1096,10 +1106,11 @@ async function printBytes(bytes){
   try{await bleWrite(bytes);}
   catch(e){printer.char=null;updatePrinterChip();toast('Print failed: '+(e.message||e)+'. Tap the printer chip to reconnect.','error');}
 }
-async function printReceipt(s){
+async function printReceipt(s,kick){
   if(typeof s==='string')s=(window._hist||[]).find(x=>x.client_id===s);
   if(!s)return;
-  await printBytes(escpos(receiptLines(s)));
+  const r=escpos(receiptLines(s));
+  await printBytes(kick?concatBytes(drawerBytes(),r):r);
 }
 function testPrint(){
   const L=[{t:settings.shop_name||'Mika Mochi',big:1,c:1,b:1},{t:'TEST PRINT',c:1,b:1},{t:dash()},{t:padLR('Left','Right')},{t:'Paper '+settings.paper+'mm / '+W()+' chars'},{t:'1234567890'.repeat(5).slice(0,W())},{t:dash()},{t:'Printer OK :)',c:1}];
@@ -1570,6 +1581,23 @@ async function saveRequest(){
   const {error}=await sb.from('mm_cafe_transfers').insert({status:'requested',items,note:($('reqNote')?.value||'').trim(),requested_by:user.name,requested_at:now});
   if(error){if(b){b.disabled=false;b.textContent='📝 Send request';}return toast('Failed: '+error.message,'error');}
   toast('Request sent to production ✓','success');renderInventory();
+}
+
+
+// ===================== CASH DRAWER =====================
+// The drawer is wired to the printer's DK port; the printer pulses it on ESC p.
+function drawerOn(){return !!printer.drawer&&printer.mode!=='none';}
+function drawerBytes(){return new Uint8Array([0x1B,0x40,0x1B,0x70,printer.pin?1:0,0x19,0xFA]);}
+function concatBytes(a,b){const o=new Uint8Array(a.length+b.length);o.set(a,0);o.set(b,a.length);return o;}
+async function openDrawer(){if(printer.mode==='none')return toast('Set up the printer first','error');await printBytes(drawerBytes());}
+async function manualOpenDrawer(){
+  const reason=prompt('Why open the drawer without a sale? (e.g. change for a customer, add float)');
+  if(reason===null)return;if(!reason.trim())return toast('Reason is required','error');
+  await openDrawer();
+  const now=new Date();
+  const {error}=await sb.from('mm_pos_drawer_log').insert({log_date:dateStr(now),opened_at:now.toISOString(),staff_name:user.name,reason:reason.trim()});
+  if(error)console.warn('drawer log',error);
+  toast('Drawer opened · logged','success');
 }
 
 // ===================== KIOSK EXTRAS =====================
