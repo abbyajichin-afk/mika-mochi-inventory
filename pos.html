@@ -44,7 +44,7 @@ button{font-family:inherit;cursor:pointer}
 .brand small{color:var(--muted);font-weight:600;font-size:0.72rem;margin-left:4px}
 .tabs{display:flex;gap:6px;margin-left:10px;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
-.tab{border:none;background:none;padding:9px 14px;border-radius:999px;font-weight:700;font-size:0.88rem;color:var(--muted);white-space:nowrap}
+.tab{border:none;background:none;padding:9px 11px;border-radius:999px;font-weight:700;font-size:0.88rem;color:var(--muted);white-space:nowrap}
 .tab.active{background:var(--pink-pale);color:var(--pink-dark)}
 .top-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
 .chip{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--cream);border-radius:999px;padding:6px 11px;font-size:0.76rem;font-weight:700;color:var(--text);white-space:nowrap}
@@ -109,6 +109,27 @@ button{font-family:inherit;cursor:pointer}
 .pay-btn{width:100%;margin-top:12px;border:none;border-radius:var(--rs);background:var(--green);color:#fff;font-size:1.2rem;font-weight:800;padding:18px}
 .pay-btn:disabled{background:#cfd8d2}
 .cart-toggle{display:none}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--red);color:#fff;font-size:0.68rem;font-weight:800;margin-left:3px}
+.cust-bar{padding:10px 14px;border-bottom:1px solid var(--border)}
+.cust-add{width:100%;border:2px dashed var(--border);background:var(--cream);border-radius:var(--rs);padding:10px;font-weight:800;color:var(--pink-dark);font-size:0.88rem}
+.cust-card{background:var(--pink-pale);border-radius:var(--rs);padding:10px 12px}
+.cust-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:0.9rem}
+.stamps{display:flex;align-items:center;gap:4px;margin-top:7px;flex-wrap:wrap}
+.sd{width:15px;height:15px;border-radius:50%;border:2px solid var(--pink);background:#fff}
+.sd.on{background:var(--pink)}
+.st-n{font-size:0.76rem;font-weight:800;color:var(--pink-dark);margin-left:4px}
+.cust-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.cust-actions:empty{display:none}
+.rw-row{display:flex;justify-content:space-between;align-items:center;font-size:0.86rem;color:var(--green-dark);font-weight:700;padding:3px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip-f{border:2px solid var(--border);background:#fff;border-radius:999px;padding:7px 13px;font-weight:700;font-size:0.8rem;color:var(--text)}
+.chip-f.active{border-color:var(--pink);background:var(--pink-pale);color:var(--pink-dark)}
+.pill.ok{background:#e8f6ee;color:var(--green-dark)}
+.pill.low{background:#fdecea;color:var(--red)}
+.inv-row{display:grid;grid-template-columns:1fr 90px 70px 80px 80px;gap:8px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.88rem}
+.inv-row.head{cursor:default;font-size:0.7rem;font-weight:800;color:var(--muted);border-bottom:2px solid var(--border)}
+.inv-row>span:not(:first-child){text-align:right}
+@media (max-width:640px){.inv-row{grid-template-columns:1fr 70px 70px}.inv-row .hide-sm{display:none}}
 .mini-pay{display:none;border:none;border-radius:var(--rs);background:var(--green);color:#fff;font-weight:800;font-size:0.95rem;padding:10px 16px}
 .mini-pay:disabled{background:#cfd8d2}
 
@@ -224,6 +245,8 @@ button{font-family:inherit;cursor:pointer}
     <div class="tabs" id="tabs">
       <button class="tab active" data-view="sell" onclick="go('sell')">Sell</button>
       <button class="tab" data-view="stock" onclick="go('stock')">Stock In</button>
+      <button class="tab" data-view="customers" onclick="go('customers')">Customers</button>
+      <button class="tab" data-view="inv" onclick="go('inv')">Inventory</button>
       <button class="tab" data-view="history" onclick="go('history')">History</button>
       <button class="tab" data-view="close" onclick="go('close')">Close Shop</button>
       <button class="tab mgr-only" data-view="settings" onclick="go('settings')">Settings</button>
@@ -357,6 +380,7 @@ async function startApp(){
   await loadMenu();
   if(curView==='sell')renderSell();
   initSeq();flushQueue();updateNet();updatePrinterChip();
+  loadInv().then(err=>{if(!err){const n=_inv.filter(invLow).length;if(n)toast('⚠️ '+n+' inventory item(s) are running low','error');}loadTransfersBadge();});
   await loadStock();if(curView==='sell')drawGrid();
   printerAutoReconnect();
   requestWake();
@@ -364,7 +388,7 @@ async function startApp(){
 function go(v){
   if(v==='settings'&&!isMgr())return;
   curView=v;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
-  ({sell:renderSell,stock:renderStock,history:renderHistory,close:renderClose,settings:renderSettings})[v]();
+  ({sell:renderSell,stock:renderStock,customers:renderCustomers,inv:renderInventory,history:renderHistory,close:renderClose,settings:renderSettings})[v]();
 }
 
 // ===================== SELL =====================
@@ -391,6 +415,7 @@ function renderSell(){
   <div class="cart-pane" id="cartPane">
     <button class="cart-toggle" onclick="$('cartPane').classList.toggle('open')"><span></span></button>
     <div class="cart-head"><h3 id="cartTitle" onclick="$('cartPane').classList.toggle('open')">Cart</h3><div style="display:flex;gap:10px;align-items:center"><button class="link-btn" onclick="clearCart()">Clear</button><button class="mini-pay" id="miniPay" onclick="openPay()" disabled>PAY</button></div></div>
+    <div class="cust-bar" id="custBar"></div>
     <div class="cart-list" id="cartList"></div>
     <div class="cart-foot" id="cartFoot"></div>
   </div>`;
@@ -414,10 +439,12 @@ function addItem(key){
   drawGrid();drawCart();
 }
 function changeQty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);if(!cart.length)discount=0;drawGrid();drawCart();}
-function clearCart(){if(!cart.length)return;if(!confirm('Clear the cart?'))return;cart=[];discount=0;drawGrid();drawCart();}
-function cartTotals(){const subtotal=r2(cart.reduce((a,c)=>a+c.price*c.qty,0));const disc=Math.min(r2(discount),subtotal);return{subtotal,discount:disc,total:r2(subtotal-disc),count:cart.reduce((a,c)=>a+c.qty,0)};}
+function clearCart(){if(!cart.length&&!cust)return;if(!confirm('Clear the cart?'))return;cart=[];discount=0;cust=null;rewards=[];drawGrid();drawCart();}
+function cartTotals(){const subtotal=r2(cart.reduce((a,c)=>a+c.price*c.qty,0));const reward=r2(rewards.reduce((a,r)=>a+r.amount,0));const disc=Math.min(r2(discount),Math.max(0,r2(subtotal-reward)));return{subtotal,discount:disc,reward,total:r2(Math.max(0,subtotal-disc-reward)),count:cart.reduce((a,c)=>a+c.qty,0)};}
 function drawCart(){
   const l=$('cartList');if(!l)return;
+  while(rewards.length>daifukuInCart())rewards.pop(); // a free Daifuku needs a Daifuku in the cart
+  drawCustBar();
   const T=cartTotals();
   $('cartTitle').textContent=T.count?`Cart (${T.count})`:'Cart';
   const mp=$('miniPay');if(mp){mp.disabled=!cart.length;mp.textContent=cart.length?'PAY '+rm(T.total):'PAY';}
@@ -425,6 +452,7 @@ function drawCart(){
   $('cartFoot').innerHTML=`
     <div class="sum-row"><span>Subtotal</span><span>${rm(T.subtotal)}</span></div>
     <div class="sum-row"><span><button class="disc-btn" onclick="openDiscount()" ${cart.length?'':'disabled'}>${T.discount>0?'Discount (edit)':'+ Discount'}</button></span><span>${T.discount>0?'− '+rm(T.discount):''}</span></div>
+    ${rewards.map((r,i)=>`<div class="rw-row"><span>🎁 ${esc(r.label)} <button class="link-btn" style="font-size:.75rem" onclick="removeReward(${i})">remove</button></span><span>− ${rm(r.amount)}</span></div>`).join('')}
     <div class="sum-row total"><span>Total</span><span>${rm(T.total)}</span></div>
     <button class="pay-btn" onclick="openPay()" ${cart.length?'':'disabled'}>PAY ${cart.length?rm(T.total):''}</button>`;
 }
@@ -504,10 +532,11 @@ async function confirmPay(){
     cash_received:rec,change_given:pay.method==='cash'?r2(rec-T.total):(pay.method==='split'?0:null),
     staff_id:String(user.id),staff_name:user.name,voided:false
   };
+  if(cust)attachCustToSale(sale);
   queueSale(sale);
   if(sale.sale_date===stock.date){sale.items.forEach(i=>{soldToday[i.key]=(soldToday[i.key]||0)+i.qty;});lsSet('mm_pos_stock_cache',{stock,soldToday});}
   lastSale=sale;
-  cart=[];discount=0;
+  cart=[];discount=0;cust=null;rewards=[];
   drawGrid();drawCart();
   showDone(sale);
   lockModal();
@@ -520,6 +549,7 @@ function showDone(sale){
   <div class="muted" style="margin:4px 0 14px">${rm(sale.total)} · ${esc(PAY_LABELS[sale.payment_method])}${sale.payment_detail?' ('+esc(sale.payment_detail)+')':''}</div>
   ${sale.payment_method==='cash'?`<div class="muted" style="font-weight:700">CHANGE</div><div class="chg">${rm(sale.change_given)}</div>`:''}
   ${sale.payment_method==='split'?`<div class="muted" style="font-weight:700">Cash ${rm(sale.cash_received)} · QR ${rm(sale.total-sale.cash_received)}</div>`:''}
+  ${sale.customer_id?`<div class="cust-card" style="margin-top:14px;text-align:center"><b>👤 ${esc(sale.customer_name||'Customer')}</b> · +${sale.stamps_earned||0} stamp(s) · now <b>${sale.stamps_balance}/${loyaltyCfg().need}</b>${sale.stamps_balance>=loyaltyCfg().need?'<div style="font-weight:800;color:var(--green-dark);margin-top:4px">🎁 Free Daifuku ready for next visit!</div>':''}</div>`:''}
   </div>
   <div class="btn-row"><button class="btn outline" onclick="printReceipt(lastSale)">🖨️ ${autoPrintOn()?'Reprint':'Print Receipt'}</button><button class="btn green" onclick="closeModal();renderSell()">New Sale →</button></div>`);
 }
@@ -540,11 +570,14 @@ async function flushQueue(){
   if(flushing)return;const q=getQueue();if(!q.length){updateNet();return;}
   flushing=true;
   try{
-    const {error}=await sb.from('mm_pos_sales').upsert(q,{onConflict:'client_id',ignoreDuplicates:true});
+    let {error}=await sb.from('mm_pos_sales').upsert(q,{onConflict:'client_id',ignoreDuplicates:true});
+    if(error&&/customer_|stamps_|rewards/.test(error.message||'')){ // CRM columns not added yet: save the sale without them
+      ({error}=await sb.from('mm_pos_sales').upsert(q.map(stripCrm),{onConflict:'client_id',ignoreDuplicates:true}));
+      if(!error)toast('Run the CRM SQL so customer details are saved with sales','error');}
     if(!error){const sent=new Set(q.map(s=>s.client_id));lsSet('mm_pos_queue',getQueue().filter(s=>!sent.has(s.client_id)));netState='ok';}
     else{console.warn('flush',error);netState=navigator.onLine?'err':'off';lastFlushErr=error.message;}
   }catch(e){netState='off';}
-  flushing=false;updateNet();
+  flushing=false;updateNet();flushCust();
 }
 let netState='ok',lastFlushErr='';
 function updateNet(){
@@ -558,6 +591,7 @@ function updateNet(){
 window.addEventListener('online',()=>{netState='ok';flushQueue();});
 window.addEventListener('offline',()=>{netState='off';updateNet();});
 setInterval(flushQueue,30000);
+setInterval(flushCust,45000);
 setInterval(()=>{if(user)loadMenu().then(()=>{if(curView==='sell')drawGrid();});},5*60*1000);
 
 // ===================== STOCK =====================
@@ -679,7 +713,7 @@ async function renderHistory(){
   const tot=r2(live.reduce((a,s)=>a+(+s.total||0),0));
   let h=`<div class="stat-grid"><div class="stat hero"><div class="v">${rm(tot)}</div><div class="l">Sales ${histDate===dateStr()?'today':histDate}</div></div><div class="stat"><div class="v">${live.length}</div><div class="l">Transactions</div></div><div class="stat"><div class="v">${list.length-live.length}</div><div class="l">Voided</div></div></div>`;
   if(error)h+=`<div class="card" style="color:var(--red);font-weight:700">⚠️ ${esc(error.message)}</div>`;
-  h+=`<div class="card"><div class="card-title">Receipts</div>${!list.length?'<div class="empty">No sales.</div>':list.map(s=>`<div class="list-item" onclick="viewSale('${esc(s.client_id)}')" style="cursor:pointer"><div class="li-main"><div class="li-title">${esc(s.receipt_no)} ${s.voided?'<span class="pill void">VOID</span>':''}${s._pending?' <span class="pill pending">Not sent</span>':''}</div><div class="li-meta">${timeStr(new Date(s.created_at))} · ${esc(PAY_LABELS[s.payment_method]||s.payment_method)}${s.payment_detail?' ('+esc(s.payment_detail)+')':''} · ${(s.items||[]).reduce((a,i)=>a+i.qty,0)} items · ${esc(s.staff_name||'')}</div></div><div style="font-weight:800;${s.voided?'text-decoration:line-through;color:var(--muted)':''}">${rm(s.total)}</div></div>`).join('')}</div>`;
+  h+=`<div class="card"><div class="card-title">Receipts</div>${!list.length?'<div class="empty">No sales.</div>':list.map(s=>`<div class="list-item" onclick="viewSale('${esc(s.client_id)}')" style="cursor:pointer"><div class="li-main"><div class="li-title">${esc(s.receipt_no)} ${s.voided?'<span class="pill void">VOID</span>':''}${s._pending?' <span class="pill pending">Not sent</span>':''}</div><div class="li-meta">${timeStr(new Date(s.created_at))} · ${esc(PAY_LABELS[s.payment_method]||s.payment_method)}${s.payment_detail?' ('+esc(s.payment_detail)+')':''} · ${(s.items||[]).reduce((a,i)=>a+i.qty,0)} items · ${esc(s.staff_name||'')}${s.customer_name?' · 👤 '+esc(s.customer_name):''}</div></div><div style="font-weight:800;${s.voided?'text-decoration:line-through;color:var(--muted)':''}">${rm(s.total)}</div></div>`).join('')}</div>`;
   $('histBody').innerHTML=h;
   window._hist=list;
 }
@@ -698,6 +732,7 @@ async function voidSale(id){
   let {error}=await sb.from('mm_pos_sales').update({...base,voided_at:new Date().toISOString()}).eq('id',id);
   if(error&&/voided_at/.test(error.message||''))({error}=await sb.from('mm_pos_sales').update(base).eq('id',id)); // column not added yet
   if(error)return toast('Failed: '+error.message,'error');
+  const vs=(window._hist||[]).find(x=>x.id===id);if(vs&&vs.customer_id)reverseCustForVoid(vs);
   toast('Sale voided','success');closeModal();renderHistory();loadStock();
 }
 
@@ -722,6 +757,8 @@ async function renderClose(){
   ${R.splitCount?`<p class="note">Includes ${R.splitCount} Cash + QR split payment(s), counted in each line above.</p>`:''}
   ${Object.keys(R.byWallet).length?`<p class="note">${Object.entries(R.byWallet).map(([w,v])=>esc(w)+': '+rm(v)).join(' · ')}</p>`:''}
   ${R.discount>0?`<div class="line"><span>Discounts given</span><b>${rm(R.discount)}</b></div>`:''}
+  ${R.rewardCount?`<div class="line"><span>Free Daifuku rewards</span><b>${R.rewardCount} · ${rm(R.rewardAmt)}</b></div>`:''}
+  ${R.custSales?`<div class="line"><span>Sales with a member</span><b>${R.custSales} of ${R.count} (${R.custSet.size} customer${R.custSet.size>1?'s':''})</b></div>`:''}
   ${R.voidCount?`<div class="line"><span>Voided</span><b>${R.voidCount} (${rm(R.voidAmt)})</b></div>`:''}
   </div>
   <div class="card"><div class="card-title">Cash Drawer Count</div>
@@ -771,6 +808,8 @@ function summarize(list){
     if(s._pending)R.pending++;
     if(s.voided){R.voidCount++;R.voidAmt+=+s.total||0;(R.voids=R.voids||[]).push(s);return;}
     R.count++;R.total+=+s.total||0;R.discount+=+s.discount||0;
+    (s.rewards||[]).forEach(r=>{R.rewardAmt=(R.rewardAmt||0)+(+r.amount||0);R.rewardCount=(R.rewardCount||0)+1;});
+    if(s.customer_id){R.custSales=(R.custSales||0)+1;(R.custSet=R.custSet||new Set()).add(s.customer_id);}
     Object.entries(payParts(s)).forEach(([k,v])=>{R.byPay[k]=(R.byPay[k]||0)+v;});if(s.payment_method==='split')R.splitCount=(R.splitCount||0)+1;
     if(s.payment_method==='ewallet'&&s.payment_detail)R.byWallet[s.payment_detail]=(R.byWallet[s.payment_detail]||0)+(+s.total||0);
     (s.items||[]).forEach(i=>{const k=i.cat+'|'+i.name;const o=it[k]||(it[k]={name:i.name,cat:i.cat,qty:0,amount:0});o.qty+=i.qty;o.amount+=+i.amount||i.price*i.qty;if(i.cat==='daifuku')R.dQty+=i.qty;else if(i.cat==='bites')R.bQty+=i.qty;else R.lQty+=i.qty;});
@@ -832,6 +871,15 @@ async function renderSettings(){
     ${printer.mode!=='none'?`<label class="switch"><span>Auto-print after payment</span><input type="checkbox" ${printer.auto?'checked':''} onchange="printer.auto=this.checked;savePrinter()"></label>
       <div class="btn-row"><button class="btn outline" onclick="testPrint()">Test Print</button></div>`:''}
   </div></div>
+
+  <div class="card"><div class="card-title">Loyalty Stamp Card</div>
+    <div class="row"><div class="fg"><label class="label">Stamps for 1 free Daifuku</label><input class="input" id="ly_need" type="number" min="1" value="${loyaltyCfg().need}"></div>
+    <div class="fg"><label class="label">Stamps per Daifuku</label><input class="input" id="ly_perd" type="number" min="0" value="${loyaltyCfg().perD}"></div>
+    <div class="fg"><label class="label">Stamps per Bites pack</label><input class="input" id="ly_perb" type="number" min="0" value="${loyaltyCfg().perB}"></div></div>
+    <label class="switch"><span>Birthday reward: 1 free Daifuku once in the birthday month</span><input type="checkbox" id="ly_bday" ${loyaltyCfg().bday?'checked':''}></label>
+    <p class="note">Free (reward) Daifuku don't earn stamps. Changes apply to new sales.</p>
+    <div class="btn-row"><button class="btn" onclick="saveLoyalty()">Save Loyalty</button></div>
+  </div>
 
   <div class="card"><div class="card-title">POS Staff</div>
     <p class="note" style="margin:-4px 0 10px">Tick the cafe staff who can log in to the POS. Owners and Managers can always log in. If none are ticked, all staff are shown.</p>
@@ -931,6 +979,7 @@ function receiptLines(s){
   L.push({t:padLR('Receipt: '+s.receipt_no,'')});
   L.push({t:padLR(d.toLocaleDateString('en-GB'),d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))});
   L.push({t:'Staff: '+(s.staff_name||'')});
+  if(s.customer_name)L.push({t:'Customer: '+s.customer_name});
   if(s.voided)L.push({t:'*** VOIDED ***',c:1,b:1});
   L.push({t:dash()});
   (s.items||[]).forEach(i=>{
@@ -941,10 +990,12 @@ function receiptLines(s){
   L.push({t:dash()});
   L.push({t:padLR('Subtotal',(+s.subtotal).toFixed(2))});
   if(+s.discount>0)L.push({t:padLR('Discount','-'+(+s.discount).toFixed(2))});
+  (s.rewards||[]).forEach(r=>L.push({t:padLR(r.type==='birthday'?'Birthday reward':'Stamp reward','-'+(+r.amount).toFixed(2))}));
   L.push({t:padLR('TOTAL','RM '+(+s.total).toFixed(2),Math.floor(W()/2)),big:1,b:1});
   L.push({t:padLR('Payment',s.payment_method==='duitnow'?'QR':(PAY_LABELS[s.payment_method]||s.payment_method)+(s.payment_detail?' ('+s.payment_detail+')':''))});
   if(s.payment_method==='split'){const P=payParts(s);L.push({t:padLR('  Cash',P.cash.toFixed(2))});L.push({t:padLR('  QR',P.duitnow.toFixed(2))});}
   if(s.payment_method==='cash'&&s.cash_received!=null){L.push({t:padLR('Cash',(+s.cash_received).toFixed(2))});L.push({t:padLR('Change',(+s.change_given).toFixed(2))});}
+  if(s.customer_id&&s.stamps_balance!=null){L.push({t:dash()});L.push({t:padLR('Stamps earned','+'+(s.stamps_earned||0))});L.push({t:padLR('Stamp card',s.stamps_balance+'/'+loyaltyCfg().need)});if(s.stamps_balance>=loyaltyCfg().need)L.push({t:'Free Daifuku on your next visit!',c:1,b:1});}
   L.push({t:dash()});
   if(settings.receipt_footer)wrap(settings.receipt_footer).forEach(x=>L.push({t:x,c:1}));
   L.push({t:'@mika_mochi.my',c:1});
@@ -1060,6 +1111,7 @@ function printSummary(){
     {t:padLR('Transactions',String(R.count))},{t:padLR('Daifuku (pcs)',String(R.dQty))},{t:padLR('Mochi Bites',String(R.bQty))},{t:padLR('Other',String(R.lQty))},{t:dash()},
     ...[...PAY_KEYS,...(R.byPay.ewallet?['ewallet']:[])].map(k=>({t:padLR(k==='duitnow'?'QR':PAY_LABELS[k],(R.byPay[k]||0).toFixed(2))})),
     ...(R.discount>0?[{t:padLR('Discount',R.discount.toFixed(2))}]:[]),
+    ...(R.rewardCount?[{t:padLR('Free Daifuku ('+R.rewardCount+')',R.rewardAmt.toFixed(2))}]:[]),
     ...(R.voidCount?[{t:padLR('Void ('+R.voidCount+')',R.voidAmt.toFixed(2))},...(R.voids||[]).map(v=>({t:'  '+v.receipt_no+' by '+(v.voided_by||'-')}))]:[]),
     {t:padLR('TOTAL','RM '+R.total.toFixed(2),Math.floor(W()/2)),big:1,b:1},{t:dash()},
     {t:padLR('Float',c.fl.toFixed(2))},{t:padLR('Expected cash',c.expected.toFixed(2))},
@@ -1068,6 +1120,456 @@ function printSummary(){
     ...(window._closeStock?(()=>{const t=stockCloseTotals();return[{t:'WASTAGE',b:1},{t:padLR('Discard Daifuku',String(t.dBuang))},{t:padLR('Discard Bites',String(t.bBuang))},{t:padLR('Discard value','RM '+t.amt.toFixed(2))},{t:padLR('Eaten/sample',t.dMakan+' pcs / '+t.bMakan+' pk')},{t:dash()}];})():[]),
     {t:'By: '+user.name},{t:new Date().toLocaleString('en-GB')}];
   printBytes(escpos(L));
+}
+
+// ===================== CUSTOMERS (CRM + LOYALTY) =====================
+const CRM_FIELDS=['customer_id','customer_name','customer_phone','stamps_earned','stamps_balance','rewards'];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let cust=null;      // customer attached to the current cart
+let rewards=[];     // [{type:'stamp'|'birthday',amount,label,stamps}]
+function stripCrm(s){const o={...s};CRM_FIELDS.forEach(k=>delete o[k]);return o;}
+function normPhone(p){let d=String(p||'').replace(/\D/g,'');if(d.startsWith('60'))d='0'+d.slice(2);return d;}
+function waPhone(p){const d=normPhone(p);return d.startsWith('0')?'60'+d.slice(1):d;}
+function fmtPhone(p){const d=normPhone(p);return d.length>4?d.slice(0,3)+'-'+d.slice(3):d;}
+function loyaltyCfg(){const b=settings.birthday_reward;return{need:Math.max(1,parseInt(settings.loyalty_stamps_needed)||10),perD:settings.loyalty_per_daifuku==null||settings.loyalty_per_daifuku===''?1:+settings.loyalty_per_daifuku,perB:+settings.loyalty_per_bites||0,bday:!(b===false||b==='false')};}
+// stamp changes waiting to be written to the customer record (works offline)
+function custQueue(){return lsGet('mm_pos_cust_queue',[]);}
+function custPendingStamps(id){return custQueue().filter(q=>q.customer_id===id).reduce((a,q)=>a+(q.d_stamps||0),0);}
+function custStamps(c){return Math.max(0,(c.stamps||0)+custPendingStamps(c.id));}
+function bdayThisMonth(c){return !!c.birth_month&&+c.birth_month===new Date().getMonth()+1;}
+function bdayAvailable(c){const y=new Date().getFullYear();const pend=custQueue().some(q=>q.customer_id===c.id&&q.birthday_year===y);return loyaltyCfg().bday&&bdayThisMonth(c)&&+c.birthday_claimed_year!==y&&!pend;}
+function daifukuInCart(){return cart.filter(c=>c.cat==='daifuku').reduce((a,c)=>a+c.qty,0);}
+function stampsEarned(items,rw){const L=loyaltyCfg();const d=items.filter(i=>i.cat==='daifuku').reduce((a,i)=>a+i.qty,0)-(rw||[]).length;const b=items.filter(i=>i.cat==='bites').reduce((a,i)=>a+i.qty,0);return Math.max(0,d)*L.perD+b*L.perB;}
+
+function drawCustBar(){
+  const el=$('custBar');if(!el)return;
+  if(!cust){el.innerHTML=`<button class="cust-add" onclick="openCustomer()">👤 Add customer (phone no.)</button>`;return;}
+  const L=loyaltyCfg();const st=custStamps(cust);
+  const dots=L.need<=15?Array.from({length:L.need},(_,i)=>`<span class="sd ${i<Math.min(st,L.need)?'on':''}"></span>`).join(''):'';
+  el.innerHTML=`<div class="cust-card"><div class="cust-top"><div><b>${esc(cust.name||'Customer')}</b> <span class="muted">${esc(fmtPhone(cust.phone))}</span>${bdayThisMonth(cust)?' 🎂':''}</div><button class="x-btn" style="width:28px;height:28px;font-size:.85rem" onclick="detachCustomer()" title="Remove customer">✕</button></div>
+  <div class="stamps">${dots}<span class="st-n">${st}/${L.need} stamps</span></div>
+  <div class="cust-actions">${st>=L.need&&!rewards.some(r=>r.type==='stamp')?`<button class="btn sm green" onclick="addReward('stamp')">🎁 Redeem free Daifuku</button>`:''}${bdayAvailable(cust)&&!rewards.some(r=>r.type==='birthday')?`<button class="btn sm" onclick="addReward('birthday')">🎂 Birthday free Daifuku</button>`:''}</div></div>`;
+}
+function detachCustomer(){cust=null;rewards=[];drawCart();}
+function addReward(type){
+  if(!cust||rewards.some(r=>r.type===type))return;
+  if(daifukuInCart()<=rewards.length)return toast('Add the Daifuku the customer wants for free to the cart first','error');
+  const L=loyaltyCfg();
+  if(type==='stamp'&&custStamps(cust)<L.need)return toast('Not enough stamps yet','error');
+  if(type==='birthday'&&!bdayAvailable(cust))return toast('Birthday reward not available','error');
+  rewards.push({type,amount:r2(+settings.daifuku_price||0),label:type==='stamp'?'Free Daifuku (stamp card)':'Free Daifuku (birthday)',stamps:type==='stamp'?L.need:0});
+  drawCart();
+}
+function removeReward(i){rewards.splice(i,1);drawCart();}
+
+// --- lookup & register ---
+function openCustomer(){
+  openModal(`<h2>Customer <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="fg"><label class="label">Phone number</label><input class="input big-input" id="custPhone" type="tel" inputmode="tel" placeholder="012 345 6789" oninput="custSearchDeb()" autocomplete="off"></div>
+  <div id="custRes"><p class="note">Type at least 4 digits to search.</p></div>`);
+  setTimeout(()=>$('custPhone')?.focus(),50);
+}
+let _cst;function custSearchDeb(){clearTimeout(_cst);_cst=setTimeout(custSearch,250);}
+async function custSearch(){
+  const el=$('custRes');if(!el)return;const d=normPhone($('custPhone')?.value);
+  if(d.length<4){el.innerHTML='<p class="note">Type at least 4 digits to search.</p>';return;}
+  const {data,error}=await sb.from('mm_pos_customers').select('*').ilike('phone','%'+d+'%').order('last_visit',{ascending:false,nullsFirst:false}).limit(6);
+  if(error){el.innerHTML=`<p class="note" style="color:var(--red)">${/mm_pos_customers/.test(error.message||'')?'Customer table missing — run the CRM SQL first.':(navigator.onLine?esc(error.message):'Customer lookup needs internet.')}</p>`;return;}
+  window._custRes=data||[];const L=loyaltyCfg();
+  const exact=window._custRes.some(c=>normPhone(c.phone)===d);
+  el.innerHTML=window._custRes.map((c,i)=>`<div class="list-item" style="cursor:pointer" onclick="attachCustomer(${i})"><div class="li-main"><div class="li-title">${esc(c.name||'—')} ${bdayThisMonth(c)?'🎂':''}</div><div class="li-meta">${esc(fmtPhone(c.phone))} · ${custStamps(c)}/${L.need} stamps · ${c.visits||0} visits</div></div><span class="btn sm">Select</span></div>`).join('')
+    +(exact?'':(d.length>=10?`<button class="btn green" style="width:100%;margin-top:10px" onclick="openCustForm(null,'${d}')">+ Register new customer ${esc(fmtPhone(d))}</button>`:'<p class="note">Not found? Type the full number to register.</p>'));
+}
+function attachCustomer(i){
+  cust=(window._custRes||[])[i];if(!cust)return;rewards=[];closeModal();drawCart();
+  if(bdayAvailable(cust))toast('🎂 Birthday month! A free Daifuku is available','success');
+  else if(custStamps(cust)>=loyaltyCfg().need)toast('🎁 Stamp card full — free Daifuku available','success');
+}
+function openCustForm(id,phone,fromList){
+  const c=id?((_custList.find(x=>x.id===id))||{}):{phone:phone||''};
+  openModal(`<h2>${id?'Edit Customer':'New Customer'} <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="row"><div class="fg"><label class="label">Phone number</label><input class="input" id="cf_phone" type="tel" inputmode="tel" value="${esc(c.phone||'')}"></div>
+  <div class="fg"><label class="label">Name</label><input class="input" id="cf_name" value="${esc(c.name||'')}" placeholder="e.g. Aisyah"></div></div>
+  <div class="row"><div class="fg"><label class="label">Birthday — day (optional)</label><select class="select" id="cf_bd"><option value="">—</option>${Array.from({length:31},(_,i)=>`<option ${+c.birth_day===i+1?'selected':''}>${i+1}</option>`).join('')}</select></div>
+  <div class="fg"><label class="label">Birthday — month</label><select class="select" id="cf_bm"><option value="">—</option>${MONTHS.map((m,i)=>`<option value="${i+1}" ${+c.birth_month===i+1?'selected':''}>${m}</option>`).join('')}</select></div></div>
+  <label class="switch"><span>Customer agrees to receive promos via WhatsApp</span><input type="checkbox" id="cf_mk" ${c.marketing_ok?'checked':''}></label>
+  <div class="fg"><label class="label">Notes</label><input class="input" id="cf_notes" value="${esc(c.notes||'')}" placeholder="e.g. loves Biscoff"></div>
+  <div class="btn-row"><button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn" id="cf_save" onclick="saveCustomer(${id?`'${esc(id)}'`:'null'},${fromList?1:0})">Save</button></div>`);
+  setTimeout(()=>$('cf_name')?.focus(),50);
+}
+async function saveCustomer(id,fromList){
+  const phone=normPhone($('cf_phone').value);
+  if(!/^0\d{8,10}$/.test(phone))return toast('Enter a valid phone number (e.g. 0123456789)','error');
+  const row={phone,name:$('cf_name').value.trim(),birth_day:parseInt($('cf_bd').value)||null,birth_month:parseInt($('cf_bm').value)||null,marketing_ok:$('cf_mk').checked,notes:$('cf_notes').value.trim()};
+  if(!row.name)return toast('Name is required','error');
+  const b=$('cf_save');if(b){b.disabled=true;b.textContent='Saving...';}
+  const res=id?await sb.from('mm_pos_customers').update(row).eq('id',id):await sb.from('mm_pos_customers').insert({...row,created_by:user.name});
+  if(res.error){if(b){b.disabled=false;b.textContent='Save';}return toast(/duplicate|unique/i.test(res.error.message||'')?'This phone number is already registered':'Failed: '+res.error.message,'error');}
+  toast('Customer saved ✓','success');closeModal();
+  if(fromList){renderCustomers();return;}
+  const {data}=await sb.from('mm_pos_customers').select('*').eq('phone',phone).maybeSingle();
+  cust=data||{...row,id:null};rewards=[];drawCart();
+  if(cust.id&&bdayAvailable(cust))toast('🎂 Birthday month! A free Daifuku is available','success');
+}
+
+// --- link a sale to the customer; update stamps via a queue (works offline) ---
+function attachCustToSale(sale){
+  if(!cust||!cust.id)return;
+  const earned=stampsEarned(sale.items,rewards);const used=rewards.reduce((a,r)=>a+(r.stamps||0),0);
+  const before=custStamps(cust);
+  sale.customer_id=cust.id;sale.customer_name=cust.name||'';sale.customer_phone=cust.phone||'';
+  sale.stamps_earned=earned;sale.stamps_balance=Math.max(0,before-used+earned);
+  sale.rewards=rewards.map(r=>({type:r.type,amount:r.amount,stamps:r.stamps}));
+  const q=custQueue();
+  q.push({op:uid(),customer_id:cust.id,d_stamps:earned-used,d_visits:1,d_spent:sale.total,last_visit:sale.created_at,birthday_year:rewards.some(r=>r.type==='birthday')?new Date().getFullYear():null});
+  lsSet('mm_pos_cust_queue',q);
+}
+function reverseCustForVoid(s){
+  const used=(s.rewards||[]).reduce((a,r)=>a+(+r.stamps||0),0);
+  const q=custQueue();
+  q.push({op:uid(),customer_id:s.customer_id,d_stamps:used-(s.stamps_earned||0),d_visits:-1,d_spent:-(+s.total||0),clear_birthday:(s.rewards||[]).some(r=>r.type==='birthday')?new Date(s.created_at).getFullYear():null});
+  lsSet('mm_pos_cust_queue',q);flushCust();
+}
+let custFlushing=false;
+async function flushCust(){
+  if(custFlushing)return;const q=custQueue();if(!q.length)return;custFlushing=true;
+  try{
+    for(const op of q){
+      const {data:c,error}=await sb.from('mm_pos_customers').select('*').eq('id',op.customer_id).maybeSingle();
+      if(error)break;
+      if(c){
+        const upd={stamps:Math.max(0,(c.stamps||0)+(op.d_stamps||0)),visits:Math.max(0,(c.visits||0)+(op.d_visits||0)),total_spent:r2(Math.max(0,(+c.total_spent||0)+(op.d_spent||0)))};
+        if(op.last_visit&&(!c.last_visit||op.last_visit>c.last_visit))upd.last_visit=op.last_visit;
+        if(op.birthday_year)upd.birthday_claimed_year=op.birthday_year;
+        if(op.clear_birthday&&+c.birthday_claimed_year===+op.clear_birthday)upd.birthday_claimed_year=null;
+        const {error:ue}=await sb.from('mm_pos_customers').update(upd).eq('id',op.customer_id);
+        if(ue)break;
+      }
+      lsSet('mm_pos_cust_queue',custQueue().filter(x=>x.op!==op.op));
+    }
+  }catch(e){console.warn('flushCust',e);}
+  custFlushing=false;
+}
+
+// --- Customers tab ---
+let custFilter='all',custQ='',_custList=[];
+async function renderCustomers(){
+  $('view').innerHTML=`<div class="page"><div class="page-inner" id="custBody"><div class="card muted">Loading...</div></div></div>`;
+  await flushCust();
+  const {data,error}=await sb.from('mm_pos_customers').select('*').order('last_visit',{ascending:false,nullsFirst:false}).limit(3000);
+  if(error){$('custBody').innerHTML=`<div class="card" style="color:var(--red);font-weight:700">⚠️ ${/mm_pos_customers/.test(error.message||'')?'Customer table missing — run the CRM SQL first.':esc(error.message)}</div>`;return;}
+  _custList=data||[];drawCustomers();
+}
+function daysSince(t){return t?Math.floor((Date.now()-new Date(t).getTime())/86400000):9999;}
+function custFiltered(){
+  const q=custQ.trim().toLowerCase();const qd=normPhone(custQ);const need=loyaltyCfg().need;
+  return _custList.filter(c=>{
+    if(custFilter==='bday'&&!bdayThisMonth(c))return false;
+    if(custFilter==='promo'&&!c.marketing_ok)return false;
+    if(custFilter==='reward'&&custStamps(c)<need)return false;
+    if(custFilter==='inactive'&&daysSince(c.last_visit)<30)return false;
+    if(!q)return true;
+    return (c.name||'').toLowerCase().includes(q)||(qd.length>=3&&normPhone(c.phone).includes(qd));
+  });
+}
+function drawCustomers(){
+  const el=$('custBody');if(!el)return;const need=loyaltyCfg().need;const ym=dateStr().slice(0,7);
+  const F=[['all','All'],['bday','🎂 Birthday this month'],['promo','✅ Promo OK'],['reward','🎁 Reward ready'],['inactive','💤 Not back 30+ days']];
+  el.innerHTML=`<div class="stat-grid">
+    <div class="stat hero"><div class="v">${_custList.length}</div><div class="l">Customers</div></div>
+    <div class="stat"><div class="v">${_custList.filter(c=>(c.created_at||'').slice(0,7)===ym).length}</div><div class="l">New this month</div></div>
+    <div class="stat"><div class="v">${_custList.filter(bdayThisMonth).length}</div><div class="l">Birthdays this month</div></div>
+    <div class="stat"><div class="v">${_custList.filter(c=>custStamps(c)>=need).length}</div><div class="l">Reward ready</div></div></div>
+  <div class="card">
+    <div class="row" style="align-items:center;margin-bottom:12px"><input class="input" placeholder="Search name or phone..." value="${esc(custQ)}" oninput="custQ=this.value;drawCustList()"><div style="flex:0;display:flex;gap:8px"><button class="btn" onclick="openCustForm(null,'',1)" style="white-space:nowrap">+ New</button></div></div>
+    <div class="chips">${F.map(([k,l])=>`<button class="chip-f ${custFilter===k?'active':''}" onclick="custFilter='${k}';drawCustomers()">${l}</button>`).join('')}</div>
+    <div class="btn-row" style="margin:0 0 6px"><button class="btn outline sm" onclick="exportCustCsv()">⬇ Export CSV</button><button class="btn outline sm" onclick="copyCustNumbers()">📋 Copy WhatsApp numbers</button></div>
+    <p class="note" style="margin-bottom:8px">Export and copy use the list below (current filter). For promo blasts, pick ✅ Promo OK first — only message customers who agreed.</p>
+    <div id="custList"></div>
+  </div>`;
+  drawCustList();
+}
+function drawCustList(){
+  const el=$('custList');if(!el)return;const list=custFiltered();const need=loyaltyCfg().need;
+  el.innerHTML=!list.length?'<div class="empty">No customers found.</div>':`<p class="note" style="margin:0 0 4px">${list.length} customer${list.length>1?'s':''}</p>`+list.slice(0,300).map(c=>`<div class="list-item" style="cursor:pointer" onclick="custDetail('${esc(c.id)}')"><div class="li-main"><div class="li-title">${esc(c.name||'—')} ${bdayThisMonth(c)?'🎂':''} ${c.marketing_ok?'<span class="pill ok">Promo OK</span>':''} ${custStamps(c)>=need?'<span class="pill">🎁 Reward</span>':''}</div><div class="li-meta">${esc(fmtPhone(c.phone))} · ${custStamps(c)}/${need} stamps · ${c.visits||0} visits · ${rm(c.total_spent)} · ${c.last_visit?'last '+new Date(c.last_visit).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'no visits yet'}</div></div></div>`).join('')+(list.length>300?'<p class="note">Showing first 300 — use search to narrow down.</p>':'');
+}
+async function custDetail(id){
+  const c=_custList.find(x=>x.id===id);if(!c)return;const need=loyaltyCfg().need;
+  openModal(`<h2>${esc(c.name||'Customer')} ${bdayThisMonth(c)?'🎂':''}<button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="stat-grid"><div class="stat"><div class="v">${custStamps(c)}/${need}</div><div class="l">Stamps</div></div><div class="stat"><div class="v">${c.visits||0}</div><div class="l">Visits</div></div><div class="stat"><div class="v">${rm(c.total_spent)}</div><div class="l">Total spent</div></div></div>
+  <div class="line"><span>Phone</span><b>${esc(fmtPhone(c.phone))}</b></div>
+  <div class="line"><span>Birthday</span><b>${c.birth_month?(c.birth_day?c.birth_day+' ':'')+MONTHS[c.birth_month-1]:'—'}${+c.birthday_claimed_year===new Date().getFullYear()?' · reward used this year':''}</b></div>
+  <div class="line"><span>Promo via WhatsApp</span><b>${c.marketing_ok?'Agreed':'No'}</b></div>
+  <div class="line"><span>Last visit</span><b>${c.last_visit?new Date(c.last_visit).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'}</b></div>
+  <div class="line"><span>Joined</span><b>${c.created_at?new Date(c.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}${c.created_by?' by '+esc(c.created_by):''}</b></div>
+  <div class="line"><span>Favourite</span><b id="cdFav">…</b></div>
+  ${c.notes?`<p class="note" style="white-space:pre-line">${esc(c.notes)}</p>`:''}
+  <div style="font-weight:800;margin:14px 0 4px">Recent purchases</div><div id="cdSales" class="muted">Loading...</div>
+  <div class="btn-row"><a class="btn green" style="text-align:center;text-decoration:none" href="https://wa.me/${waPhone(c.phone)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn outline" onclick="openCustForm('${esc(c.id)}','',1)">Edit</button>${isMgr()?`<button class="btn outline" onclick="adjustStamps('${esc(c.id)}')">Adjust stamps</button>`:''}</div>`,true);
+  const {data}=await sb.from('mm_pos_sales').select('*').eq('customer_id',id).order('created_at',{ascending:false}).limit(15);
+  const list=data||[];const fav={};
+  list.filter(s=>!s.voided).forEach(s=>(s.items||[]).forEach(i=>{if(i.cat!=='lain')fav[i.name]=(fav[i.name]||0)+i.qty;}));
+  const top=Object.entries(fav).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  if($('cdFav'))$('cdFav').textContent=top.length?top.map(([n,q])=>n+' ('+q+')').join(', '):'—';
+  if($('cdSales'))$('cdSales').innerHTML=!list.length?'<div class="empty" style="padding:12px">No purchases yet.</div>':list.map(s=>`<div class="line"><span>${new Date(s.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · ${esc(s.receipt_no)} ${s.voided?'<span class="pill void">VOID</span>':''}<br><span class="muted" style="font-size:.76rem">${(s.items||[]).map(i=>i.qty+'× '+esc(i.name)).join(', ')}${(s.rewards||[]).length?' · 🎁 reward used':''}</span></span><b style="${s.voided?'text-decoration:line-through;color:var(--muted)':''}">${rm(s.total)}</b></div>`).join('');
+}
+async function adjustStamps(id){
+  const c=_custList.find(x=>x.id===id);if(!c)return;const now=custStamps(c);
+  const v=prompt(`Set stamps for ${c.name} (currently ${now}):`,String(now));if(v===null)return;
+  const n=parseInt(v);if(isNaN(n)||n<0)return toast('Enter a valid number','error');
+  const reason=prompt('Reason? (e.g. moved from paper card)')||'';
+  const note=`${dateStr()} stamps ${now}→${n} by ${user.name}${reason?': '+reason:''}`;
+  const {error}=await sb.from('mm_pos_customers').update({stamps:Math.max(0,n-custPendingStamps(id)),notes:(c.notes?c.notes+'\n':'')+note}).eq('id',id);
+  if(error)return toast('Failed: '+error.message,'error');
+  toast('Stamps updated ✓','success');closeModal();renderCustomers();
+}
+function custCsvRows(list){
+  return [['Name','Phone','WhatsApp','Birthday','Stamps','Visits','Total spent (RM)','Last visit','Promo OK','Joined','Notes']]
+    .concat(list.map(c=>[c.name||'',c.phone||'',waPhone(c.phone),c.birth_month?(c.birth_day?c.birth_day+' ':'')+MONTHS[c.birth_month-1]:'',custStamps(c),c.visits||0,(+c.total_spent||0).toFixed(2),c.last_visit?dateStr(new Date(c.last_visit)):'',c.marketing_ok?'Yes':'No',c.created_at?dateStr(new Date(c.created_at)):'',c.notes||'']));
+}
+function exportCustCsv(){
+  const list=custFiltered();if(!list.length)return toast('No customers in this list','error');
+  const csv=custCsvRows(list).map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));
+  a.download='mika-mochi-customers-'+(custFilter==='all'?'':custFilter+'-')+dateStr()+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);toast('Exported '+list.length+' customers','success');
+}
+async function copyCustNumbers(){
+  const list=custFiltered();if(!list.length)return toast('No customers in this list','error');
+  const txt=list.map(c=>waPhone(c.phone)).join('\n');
+  try{await navigator.clipboard.writeText(txt);}catch(e){const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand('copy');}catch(_){}t.remove();}
+  toast('Copied '+list.length+' numbers','success');
+}
+async function saveLoyalty(){
+  const ns={loyalty_stamps_needed:Math.max(1,parseInt($('ly_need').value)||10),loyalty_per_daifuku:Math.max(0,parseInt($('ly_perd').value)||0),loyalty_per_bites:Math.max(0,parseInt($('ly_perb').value)||0),birthday_reward:$('ly_bday').checked};
+  const rows=Object.entries(ns).map(([key,value])=>({key,value,updated_at:new Date().toISOString()}));
+  const {error}=await sb.from('mm_pos_settings').upsert(rows,{onConflict:'key'});
+  if(error)return toast('Failed: '+error.message,'error');
+  settings={...settings,...ns};lsSet('mm_pos_menu_cache',{menu,settings});toast('Loyalty saved ✓','success');
+}
+
+// ===================== CAFE INVENTORY =====================
+const INV_CATS={ingredient:'Ingredients',drink:'Drink supplies',topping:'Bites toppings & sauces',packaging:'Packaging',shop:'Shop supplies'};
+const INV_UNITS=['pcs','pack','box','bottle','can','tub','roll','kg','g','L','ml'];
+const MOVE_LABELS={in:'Bought directly',transfer:'From production',out:'Used / wasted',count:'Counted'};
+let _inv=[],_invMoves=[],invCat='all';
+function invLow(i){return i.active!==false&&+i.par_level>0&&+i.qty<=+i.par_level;}
+function fq(n){n=+n||0;return Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');}
+function updInvBadge(){const t=document.querySelector('.tab[data-view="inv"]');if(!t)return;const n=_inv.filter(invLow).length+((_transfers||[]).filter(x=>x.status==='sent').length);t.innerHTML='Inventory'+(n?` <span class="tab-badge">${n}</span>`:'');}
+async function loadInv(){
+  const {data,error}=await sb.from('mm_cafe_inventory').select('*').order('sort_order',{ascending:true});
+  if(!error){_inv=(data||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)||String(a.name).localeCompare(b.name));updInvBadge();}
+  return error;
+}
+function monthStartIso(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1).toISOString();}
+function invUsage(){const u={};_invMoves.forEach(m=>{const o=u[m.item_id]||(u[m.item_id]={used:0,rec:0});if(m.move_type==='in'||m.move_type==='transfer')o.rec+=+m.qty||0;else if(m.move_type==='out')o.used+=+m.qty||0;else if(m.move_type==='count')o.used+=Math.max(0,(+m.before_qty||0)-(+m.after_qty||0));});return u;}
+async function renderInventory(){
+  $('view').innerHTML=`<div class="page"><div class="page-inner" id="invBody"><div class="card muted">Loading...</div></div></div>`;
+  const [err,mv,tr]=await Promise.all([loadInv(),sb.from('mm_cafe_inv_moves').select('*').gte('created_at',monthStartIso()).order('created_at',{ascending:false}).limit(2000),sb.from('mm_cafe_transfers').select('*').order('created_at',{ascending:false}).limit(40)]);
+  _transfers=tr.error?null:(tr.data||[]);updInvBadge();
+  if(err){$('invBody').innerHTML=`<div class="card" style="color:var(--red);font-weight:700">⚠️ ${/mm_cafe_inventory/.test(err.message||'')?'Inventory table missing — run the CRM & Inventory SQL first.':esc(err.message)}</div>`;return;}
+  _invMoves=mv.data||[];drawInventory();
+}
+function drawInventory(){
+  const el=$('invBody');if(!el)return;
+  const act=_inv.filter(i=>i.active!==false);const low=act.filter(invLow);const U=invUsage();
+  const lastCount=act.map(i=>i.last_counted_at).filter(Boolean).sort().pop();
+  const shown=act.filter(i=>invCat==='all'||(invCat==='low'?invLow(i):i.category===invCat));
+  let h=`<div class="stat-grid">
+    <div class="stat hero"><div class="v">${act.length}</div><div class="l">Cafe supply items</div></div>
+    <div class="stat"><div class="v" style="color:${low.length?'var(--red)':'inherit'}">${low.length}</div><div class="l">Low stock</div></div>
+    <div class="stat"><div class="v" style="font-size:1.1rem">${lastCount?new Date(lastCount).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}):'Never'}</div><div class="l">Last stock count</div></div></div>
+  <div class="card"><div class="btn-row" style="margin:0;flex-wrap:wrap"><button class="btn" onclick="invForm('count')">📋 Stock Count</button><button class="btn green" onclick="openRequest()">📝 Request from Production</button><button class="btn outline" onclick="invForm('out')">− Use / Waste</button><button class="btn outline" onclick="invForm('in')">🛒 Bought Directly</button>${isMgr()?`<button class="btn outline" onclick="invItemForm()">+ Add Item</button>`:''}</div>
+  <p class="note">Cafe supplies come from production: request here, production sends, then tap Receive when it arrives. Use “Bought Directly” only for emergency buys (e.g. milk from the shop next door). Mochi from production is under Stock In.</p></div>`+transfersHtml();
+  if(low.length)h+=`<div class="card" style="border-color:#f5c6c0"><div class="card-title" style="color:var(--red)">⚠️ Running low — restock soon${low.some(i=>i.hq_item_id)?`<button class="btn sm green" onclick="openRequest(true)">📝 Request these</button>`:''}</div>${low.map(i=>`<div class="line" style="cursor:pointer" onclick="invDetail('${esc(i.id)}')"><span>${esc(i.name)}</span><b style="color:var(--red)">${fq(i.qty)} ${esc(i.unit||'')} <span class="muted" style="font-weight:600">(min ${fq(i.par_level)})</span></b></div>`).join('')}</div>`;
+  h+=`<div class="card"><div class="chips"><button class="chip-f ${invCat==='all'?'active':''}" onclick="invCat='all';drawInventory()">All</button>${Object.entries(INV_CATS).map(([k,l])=>`<button class="chip-f ${invCat===k?'active':''}" onclick="invCat='${k}';drawInventory()">${l}</button>`).join('')}<button class="chip-f ${invCat==='low'?'active':''}" onclick="invCat='low';drawInventory()">⚠️ Low</button></div>
+  ${!act.length?`<div class="empty">No items yet. Items appear here automatically when the first transfer from production is received.</div>`:
+  `<div class="inv-row head"><span>Item</span><span>In stock</span><span class="hide-sm">Min</span><span>Used (month)</span><span class="hide-sm">Status</span></div>`+
+  (shown.length?shown.map(i=>`<div class="inv-row" onclick="invDetail('${esc(i.id)}')"><span><b>${esc(i.name)}</b><br><span class="muted" style="font-size:.74rem">${esc(INV_CATS[i.category]||i.category||'')}</span></span><span><b>${fq(i.qty)}</b> ${esc(i.unit||'')}</span><span class="hide-sm">${+i.par_level?fq(i.par_level):'–'}</span><span>${fq((U[i.id]||{}).used||0)}</span><span class="hide-sm">${invLow(i)?'<span class="pill low">Low</span>':'<span class="pill ok">OK</span>'}</span></div>`).join(''):'<div class="empty">Nothing in this filter.</div>')}
+  </div>`;
+  el.innerHTML=h;
+}
+let invMode='count';
+function invForm(mode){
+  invMode=mode;const act=_inv.filter(i=>i.active!==false);
+  if(!act.length)return toast(isMgr()?'Add items first (+ Add Item)':'No items yet — ask the owner to add them','error');
+  const T={count:['📋 Stock Count','Count what is on the shelf and enter the actual quantity. Leave blank to skip an item.'],in:['🛒 Bought Directly','Only for items the cafe bought itself (not from production). Enter the quantity bought.'],out:['− Use / Waste','Enter what was used up or thrown away (expired, spilled, damaged).']}[mode];
+  $('invBody').innerHTML=`<div class="card"><div class="card-title">${T[0]}<button class="btn sm outline" onclick="drawInventory()">Cancel</button></div><p class="note" style="margin:-4px 0 12px">${T[1]}</p>
+  ${Object.entries(INV_CATS).map(([k,l])=>{const its=act.filter(i=>i.category===k);if(!its.length)return'';return`<div style="font-weight:800;color:var(--pink-dark);margin:10px 0 4px">${l}</div><div class="stk-grid">${its.map(i=>`<div class="stk-row"><div class="n">${esc(i.name)}<div class="o">Now: ${fq(i.qty)} ${esc(i.unit||'')}${invLow(i)?' · low':''}</div></div><input class="stk-in inv-in" type="number" inputmode="decimal" min="0" step="any" data-id="${esc(i.id)}" placeholder="${mode==='count'?fq(i.qty):'0'}" style="width:80px"><span class="muted" style="font-size:.75rem;width:38px">${esc(i.unit||'')}</span></div>`).join('')}</div>`;}).join('')}
+  ${act.some(i=>!INV_CATS[i.category])?`<div style="font-weight:800;color:var(--pink-dark);margin:10px 0 4px">Other</div><div class="stk-grid">${act.filter(i=>!INV_CATS[i.category]).map(i=>`<div class="stk-row"><div class="n">${esc(i.name)}<div class="o">Now: ${fq(i.qty)} ${esc(i.unit||'')}</div></div><input class="stk-in inv-in" type="number" inputmode="decimal" min="0" step="any" data-id="${esc(i.id)}" placeholder="${mode==='count'?fq(i.qty):'0'}" style="width:80px"><span class="muted" style="font-size:.75rem;width:38px">${esc(i.unit||'')}</span></div>`).join('')}</div>`:''}
+  <div class="fg" style="margin-top:12px"><label class="label">Note (optional)</label><input class="input" id="invNote" placeholder="${mode==='in'?'e.g. bought at 7-Eleven, RM 7.50':mode==='out'?'e.g. expired milk':'e.g. weekly count'}"></div>
+  <div class="btn-row"><button class="btn outline" onclick="drawInventory()">Cancel</button><button class="btn green" id="invSave" onclick="saveInvForm()">✓ Save</button></div></div>`;
+}
+async function saveInvForm(){
+  const mode=invMode;const note=($('invNote')?.value||'').trim();const now=new Date().toISOString();
+  const moves=[],ups=[];
+  document.querySelectorAll('.inv-in').forEach(inp=>{
+    if(inp.value==='')return;const v=parseFloat(inp.value);if(isNaN(v)||v<0)return;
+    const it=_inv.find(x=>x.id===inp.dataset.id);if(!it)return;const before=+it.qty||0;let after;
+    if(mode==='count')after=v;else{if(!v)return;after=mode==='in'?before+v:Math.max(0,before-v);}
+    after=Math.round(after*1000)/1000;
+    moves.push({item_id:it.id,item_name:it.name,move_type:mode,qty:mode==='count'?after:v,before_qty:before,after_qty:after,note,staff_name:user.name,created_at:now});
+    ups.push({id:it.id,upd:mode==='count'?{qty:after,last_counted_at:now}:{qty:after}});
+  });
+  if(!moves.length)return toast('Nothing entered','error');
+  const b=$('invSave');if(b){b.disabled=true;b.textContent='Saving...';}
+  const {error}=await sb.from('mm_cafe_inv_moves').insert(moves);
+  if(error){if(b){b.disabled=false;b.textContent='✓ Save';}return toast('Failed: '+error.message,'error');}
+  for(const u of ups){const {error:ue}=await sb.from('mm_cafe_inventory').update(u.upd).eq('id',u.id);if(ue){toast('Failed: '+ue.message,'error');break;}}
+  const diffs=mode==='count'?moves.filter(m=>m.before_qty!==m.after_qty).length:0;
+  toast(mode==='count'?`Count saved ✓ (${moves.length} items${diffs?', '+diffs+' changed':''})`:mode==='in'?'Purchase recorded ✓':'Usage recorded ✓','success');
+  renderInventory();
+}
+async function invDetail(id){
+  const i=_inv.find(x=>x.id===id);if(!i)return;const U=invUsage()[id]||{used:0,rec:0};
+  openModal(`<h2>${esc(i.name)} <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="stat-grid"><div class="stat"><div class="v" style="color:${invLow(i)?'var(--red)':'inherit'}">${fq(i.qty)} <span style="font-size:.8rem">${esc(i.unit||'')}</span></div><div class="l">In stock</div></div><div class="stat"><div class="v">${fq(U.used)}</div><div class="l">Used this month</div></div><div class="stat"><div class="v">${fq(U.rec)}</div><div class="l">Received this month</div></div></div>
+  <div class="line"><span>Category</span><b>${esc(INV_CATS[i.category]||i.category||'—')}</b></div>
+  <div class="line"><span>Minimum (alert at)</span><b>${+i.par_level?fq(i.par_level)+' '+esc(i.unit||''):'Not set'}</b></div>
+  <div class="line"><span>Last counted</span><b>${i.last_counted_at?new Date(i.last_counted_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Never'}</b></div>
+  <div style="font-weight:800;margin:14px 0 4px">History</div><div id="invHist" class="muted">Loading...</div>
+  ${isMgr()?`<div class="btn-row"><button class="btn outline" onclick="invItemForm('${esc(i.id)}')">Edit item</button></div>`:''}`,true);
+  const {data}=await sb.from('mm_cafe_inv_moves').select('*').eq('item_id',id).order('created_at',{ascending:false}).limit(20);
+  const el=$('invHist');if(!el)return;
+  el.innerHTML=!(data||[]).length?'<div class="empty" style="padding:12px">No history yet.</div>':(data||[]).map(m=>`<div class="line"><span>${new Date(m.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${MOVE_LABELS[m.move_type]||m.move_type} · ${esc(m.staff_name||'')}${m.note?'<br><span class="muted" style="font-size:.76rem">'+esc(m.note)+'</span>':''}</span><b>${m.move_type==='in'?'+'+fq(m.qty):m.move_type==='out'?'−'+fq(m.qty):fq(m.before_qty)+' → '+fq(m.after_qty)}</b></div>`).join('');
+}
+function invItemForm(id){
+  if(!isMgr())return;const i=id?(_inv.find(x=>x.id===id)||{}):{category:invCat in INV_CATS?invCat:'ingredient',unit:'pcs',active:true};
+  openModal(`<h2>${id?'Edit Item':'New Item'} <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <div class="fg"><label class="label">Name</label><input class="input" id="ii_name" value="${esc(i.name||'')}" placeholder="e.g. Fresh milk 1L"></div>
+  <div class="row"><div class="fg"><label class="label">Category</label><select class="select" id="ii_cat">${Object.entries(INV_CATS).map(([k,l])=>`<option value="${k}" ${i.category===k?'selected':''}>${l}</option>`).join('')}</select></div>
+  <div class="fg"><label class="label">Unit</label><input class="input" id="ii_unit" list="ii_units" value="${esc(i.unit||'pcs')}"><datalist id="ii_units">${INV_UNITS.map(u=>`<option value="${u}">`).join('')}</datalist></div></div>
+  <div class="row"><div class="fg"><label class="label">Minimum — alert when at or below</label><input class="input" id="ii_par" type="number" min="0" step="any" value="${i.par_level??''}" placeholder="e.g. 2"></div>
+  ${id?'':`<div class="fg"><label class="label">Current quantity</label><input class="input" id="ii_qty" type="number" min="0" step="any" placeholder="0"></div>`}</div>
+  ${i.hq_item_id?'<p class="note">Linked to a production item — stock arrives through transfers.</p>':(id?'':'<p class="note">Most items are created automatically when the first transfer from production is received. Add here only items the cafe buys itself.</p>')}
+  ${id?`<label class="switch"><span>Active (shown in counts)</span><input type="checkbox" id="ii_active" ${i.active!==false?'checked':''}></label>`:''}
+  <div class="btn-row">${id?`<button class="btn red" onclick="deleteInvItem('${esc(id)}')">Delete</button>`:''}<button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveInvItem(${id?`'${esc(id)}'`:'null'})">Save</button></div>`);
+  setTimeout(()=>$('ii_name')?.focus(),50);
+}
+async function saveInvItem(id){
+  const row={name:$('ii_name').value.trim(),category:$('ii_cat').value,unit:$('ii_unit').value.trim()||'pcs',par_level:Math.max(0,parseFloat($('ii_par').value)||0)};
+  if(!row.name)return toast('Name is required','error');
+  let error;
+  if(id){row.active=$('ii_active').checked;({error}=await sb.from('mm_cafe_inventory').update(row).eq('id',id));}
+  else{const q=Math.max(0,parseFloat($('ii_qty').value)||0);row.qty=q;row.sort_order=_inv.length;if(q)row.last_counted_at=new Date().toISOString();({error}=await sb.from('mm_cafe_inventory').insert(row));}
+  if(error)return toast('Failed: '+error.message,'error');
+  toast('Item saved ✓','success');closeModal();renderInventory();
+}
+async function deleteInvItem(id){
+  if(!confirm('Delete this item? Its history stays. Tip: untick “Active” instead to just hide it.'))return;
+  const {error}=await sb.from('mm_cafe_inventory').delete().eq('id',id);
+  if(error)return toast('Failed: '+error.message,'error');
+  closeModal();renderInventory();
+}
+
+
+// ===================== TRANSFERS FROM PRODUCTION =====================
+// Production (Internal App) owns all stock. The cafe requests, production sends (HQ stock is deducted there),
+// and the cafe confirms receipt here, which adds to cafe stock. Units are the same as production's.
+const HQ_TO_CAFE_CAT={raw_material:'ingredient',flavoring:'ingredient',colouring:'ingredient',frozen_chilled:'ingredient',cookies_sprinkle:'topping',fruits_fillings:'topping',filling_ready:'topping',packaging:'packaging',cleaning:'shop'};
+const HQ_CAT_LABELS={raw_material:'Raw material',flavoring:'Flavouring',colouring:'Colouring',cookies_sprinkle:'Cookies & sprinkles',frozen_chilled:'Frozen / chilled',fruits_fillings:'Fruits / fillings',filling_ready:'Crafted filling',packaging:'Packaging',cleaning:'Cleaning'};
+let _transfers=null,_hqItems=[],_reqForm={},_reqSearch='',_reqCat='cafe';
+function trItems(t,key){return (t.items||[]).filter(i=>+i[key]>0).map(i=>`${fq(i[key])} ${esc(i.unit||'')} ${esc(i.name)}`).join(', ')||'—';}
+function fmtDT(t){return t?new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';}
+async function loadTransfersBadge(){const {data,error}=await sb.from('mm_cafe_transfers').select('id,status').eq('status','sent');if(!error){_transfers=_transfers||[];const ids=new Set((data||[]).map(x=>x.id));_transfers=[..._transfers.filter(x=>!ids.has(x.id)),...(data||[])];updInvBadge();}}
+function transfersHtml(){
+  if(_transfers===null)return `<div class="card note" style="color:var(--red)">⚠️ Transfer table missing — run the transfer SQL first.</div>`;
+  const sent=_transfers.filter(t=>t.status==='sent'),req=_transfers.filter(t=>t.status==='requested');
+  const recent=_transfers.filter(t=>t.status==='received'||t.status==='cancelled').slice(0,5);
+  let h='';
+  if(sent.length)h+=`<div class="card" style="border-color:#bfe3cc"><div class="card-title" style="color:var(--green-dark)">🚚 Incoming from production <span class="pill ok">${sent.length}</span></div>${sent.map(t=>`<div class="list-item"><div class="li-main"><div class="li-title">Sent ${fmtDT(t.sent_at)} by ${esc(t.sent_by||'-')}</div><div class="li-meta">${trItems(t,'qty_sent')}${t.note?' · '+esc(t.note):''}</div></div><button class="btn green sm" onclick="openReceive('${esc(t.id)}')">✓ Receive</button></div>`).join('')}</div>`;
+  if(req.length)h+=`<div class="card"><div class="card-title">📝 Requested — waiting for production</div>${req.map(t=>`<div class="list-item"><div class="li-main"><div class="li-title">${fmtDT(t.requested_at||t.created_at)} by ${esc(t.requested_by||'-')}</div><div class="li-meta">${trItems(t,'qty_req')}${t.note?' · '+esc(t.note):''}</div></div><button class="btn outline sm" onclick="cancelRequest('${esc(t.id)}')">Cancel</button></div>`).join('')}</div>`;
+  if(recent.length)h+=`<div class="card"><div class="card-title">Recent transfers</div>${recent.map(t=>{const short=(t.items||[]).filter(i=>t.status==='received'&&+i.qty_recv<+i.qty_sent);return`<div class="line"><span>${t.status==='received'?'✅ Received '+fmtDT(t.received_at)+' by '+esc(t.received_by||'-'):'✖ Cancelled'}<br><span class="muted" style="font-size:.76rem">${trItems(t,t.status==='received'?'qty_recv':'qty_req')}</span>${short.length?`<br><span style="color:var(--red);font-size:.76rem;font-weight:700">Short: ${short.map(i=>fq(i.qty_sent-i.qty_recv)+' '+esc(i.unit||'')+' '+esc(i.name)).join(', ')}</span>`:''}</span></div>`;}).join('')}</div>`;
+  return h;
+}
+function openReceive(id){
+  const t=(_transfers||[]).find(x=>x.id===id);if(!t)return;const its=(t.items||[]).filter(i=>+i.qty_sent>0);
+  openModal(`<h2>Receive from production <button class="x-btn" onclick="closeModal()">✕</button></h2>
+  <p class="note" style="margin:-6px 0 10px">Sent ${fmtDT(t.sent_at)} by ${esc(t.sent_by||'-')}. Check each item. If anything is short or damaged, change the received quantity.</p>
+  ${its.map((i,k)=>`<div class="stk-row"><div class="n">${esc(i.name)}<div class="o">Sent: ${fq(i.qty_sent)} ${esc(i.unit||'')}${i.qty_req!=null&&+i.qty_req!==+i.qty_sent?' · requested '+fq(i.qty_req):''}</div></div><input class="stk-in rcv-in" type="number" inputmode="decimal" min="0" step="any" data-k="${k}" value="${fq(i.qty_sent)}" style="width:80px"><span class="muted" style="font-size:.75rem;width:38px">${esc(i.unit||'')}</span></div>`).join('')}
+  <div class="fg" style="margin-top:12px"><label class="label">Note (optional)</label><input class="input" id="rcvNote" placeholder="e.g. 1 bottle leaking"></div>
+  <div class="btn-row"><button class="btn outline" onclick="closeModal()">Cancel</button><button class="btn green" id="rcvSave" onclick="saveReceive('${esc(id)}')">✓ Confirm received</button></div>`,true);
+}
+async function saveReceive(id){
+  const t=(_transfers||[]).find(x=>x.id===id);if(!t)return;const its=(t.items||[]).filter(i=>+i.qty_sent>0);
+  const recv=[...document.querySelectorAll('.rcv-in')].map(inp=>Math.max(0,parseFloat(inp.value)||0));
+  const note=($('rcvNote')?.value||'').trim();const now=new Date().toISOString();
+  const b=$('rcvSave');if(b){b.disabled=true;b.textContent='Saving...';}
+  // check it hasn't been received on another device already
+  const {data:fresh}=await sb.from('mm_cafe_transfers').select('status').eq('id',id).maybeSingle();
+  if(fresh&&fresh.status!=='sent'){toast('This transfer was already '+fresh.status,'error');closeModal();renderInventory();return;}
+  const moves=[];
+  for(let k=0;k<its.length;k++){
+    const i=its[k],q=recv[k];i.qty_recv=q;if(!q)continue;
+    let item=_inv.find(x=>x.hq_item_id&&x.hq_item_id===i.hq_item_id);
+    if(!item){
+      const row={name:i.name,unit:i.unit||'pcs',category:HQ_TO_CAFE_CAT[i.category]||'ingredient',hq_item_id:i.hq_item_id,qty:0,par_level:0,sort_order:_inv.length};
+      const {error}=await sb.from('mm_cafe_inventory').insert(row);
+      if(error){if(b){b.disabled=false;b.textContent='✓ Confirm received';}return toast('Failed: '+error.message,'error');}
+      const {data:ni}=await sb.from('mm_cafe_inventory').select('*').eq('hq_item_id',i.hq_item_id).maybeSingle();
+      item=ni||{...row,id:null};if(item.id)_inv.push(item);
+    }
+    if(!item.id)continue;
+    const before=+item.qty||0,after=Math.round((before+q)*1000)/1000;
+    const {error:ue}=await sb.from('mm_cafe_inventory').update({qty:after}).eq('id',item.id);
+    if(ue){toast('Failed: '+ue.message,'error');break;}
+    item.qty=after;
+    moves.push({item_id:item.id,item_name:item.name,move_type:'transfer',qty:q,before_qty:before,after_qty:after,note:'From production'+(q!==+i.qty_sent?` (sent ${fq(i.qty_sent)})`+(note?' · '+note:''):''),staff_name:user.name,created_at:now});
+  }
+  its.forEach((i,k)=>{if(i.qty_recv==null)i.qty_recv=recv[k];});
+  if(moves.length){const {error}=await sb.from('mm_cafe_inv_moves').insert(moves);if(error)console.warn(error);}
+  const items=(t.items||[]).map(i=>{const m=its.find(x=>x===i);return m?{...i,qty_recv:m.qty_recv}:{...i,qty_recv:0};});
+  const {error}=await sb.from('mm_cafe_transfers').update({status:'received',items,received_by:user.name,received_at:now,recv_note:note}).eq('id',id);
+  if(error)return toast('Failed: '+error.message,'error');
+  const short=items.filter(i=>+i.qty_recv<+i.qty_sent).length;
+  toast(short?`Received ✓ — ${short} item(s) short, production will see this`:'Received ✓ Cafe stock updated','success');
+  closeModal();renderInventory();
+}
+async function cancelRequest(id){
+  if(!confirm('Cancel this request?'))return;
+  const {error}=await sb.from('mm_cafe_transfers').update({status:'cancelled',cancelled_by:user.name}).eq('id',id).eq('status','requested');
+  if(error)return toast('Failed: '+error.message,'error');
+  toast('Request cancelled','success');renderInventory();
+}
+async function openRequest(lowOnly){
+  $('invBody').innerHTML='<div class="card muted">Loading production items...</div>';
+  const {data,error}=await sb.from('mm_inventory_items').select('id,name,unit,category,current_stock,active').eq('active',true).order('name');
+  if(error){$('invBody').innerHTML=`<div class="card" style="color:var(--red)">⚠️ ${esc(error.message)}</div>`;return;}
+  _hqItems=data||[];_reqForm={};_reqSearch='';_reqCat='cafe';
+  if(lowOnly)_inv.filter(i=>invLow(i)&&i.hq_item_id).forEach(i=>{_reqForm[i.hq_item_id]=Math.max(1,Math.ceil(+i.par_level*2-(+i.qty||0)));});
+  const linked=new Set(_inv.filter(i=>i.hq_item_id).map(i=>i.hq_item_id));
+  if(!linked.size)_reqCat='all';
+  $('invBody').innerHTML=`<div class="card"><div class="card-title">📝 Request from Production<button class="btn sm outline" onclick="drawInventory()">Cancel</button></div>
+  <p class="note" style="margin:-4px 0 10px">Enter how much the cafe needs. Quantities are in production's units.${lowOnly?' Suggested amounts for low items are filled in — change as needed.':''}</p>
+  <input class="search" style="width:100%;margin-bottom:10px" placeholder="Search production items..." oninput="_reqSearch=this.value;drawReqList()">
+  <div class="chips" id="reqChips"></div>
+  <div id="reqList"></div>
+  <div class="fg" style="margin-top:12px"><label class="label">Note for production (optional)</label><input class="input" id="reqNote" placeholder="e.g. need before Saturday"></div>
+  <div class="line"><span>Items requested</span><b id="reqCount">0</b></div>
+  <div class="btn-row"><button class="btn outline" onclick="drawInventory()">Cancel</button><button class="btn green" id="reqSave" onclick="saveRequest()">📝 Send request</button></div></div>`;
+  drawReqList();
+}
+function drawReqList(){
+  const el=$('reqList');if(!el)return;
+  const linked=new Map(_inv.filter(i=>i.hq_item_id).map(i=>[i.hq_item_id,i]));
+  const cats=[['cafe','⭐ Cafe items'],['all','All'],...Object.entries(HQ_CAT_LABELS).filter(([k])=>_hqItems.some(i=>i.category===k))];
+  $('reqChips').innerHTML=cats.map(([k,l])=>`<button class="chip-f ${_reqCat===k?'active':''}" onclick="_reqCat='${k}';drawReqList()">${l}</button>`).join('');
+  const q=_reqSearch.trim().toLowerCase();
+  let list=_hqItems.filter(i=>(!q||String(i.name).toLowerCase().includes(q))&&(q||_reqCat==='all'||(_reqCat==='cafe'?(linked.has(i.id)||_reqForm[i.id]):i.category===_reqCat)));
+  list.sort((a,b)=>((_reqForm[b.id]?1:0)-(_reqForm[a.id]?1:0))||((linked.has(b.id)?1:0)-(linked.has(a.id)?1:0)));
+  el.innerHTML=!list.length?`<div class="empty">${_reqCat==='cafe'&&!q?'No cafe items yet — pick from “All” or search.':'No items found.'}</div>`:`<div class="stk-grid">${list.slice(0,80).map(i=>{const c=linked.get(i.id);return`<div class="stk-row"><div class="n">${esc(i.name)}<div class="o">${c?'Cafe has '+fq(c.qty)+' · ':''}HQ has ${fq(i.current_stock)} ${esc(i.unit||'')}</div></div><input class="stk-in" type="number" inputmode="decimal" min="0" step="any" value="${_reqForm[i.id]||''}" placeholder="0" oninput="setReq('${esc(i.id)}',this.value)" style="width:80px"><span class="muted" style="font-size:.75rem;width:38px">${esc(i.unit||'')}</span></div>`;}).join('')}</div>${list.length>80?'<p class="note">Showing 80 — search to find more.</p>':''}`;
+  updReqCount();
+}
+function setReq(id,v){const n=parseFloat(v);if(n>0)_reqForm[id]=n;else delete _reqForm[id];updReqCount();}
+function updReqCount(){const e=$('reqCount');if(e)e.textContent=Object.keys(_reqForm).length;}
+async function saveRequest(){
+  const items=Object.entries(_reqForm).map(([id,q])=>{const i=_hqItems.find(x=>x.id===id);return i?{hq_item_id:i.id,name:i.name,unit:i.unit,category:i.category,qty_req:q}:null;}).filter(Boolean);
+  if(!items.length)return toast('Enter at least one quantity','error');
+  const b=$('reqSave');if(b){b.disabled=true;b.textContent='Sending...';}
+  const now=new Date().toISOString();
+  const {error}=await sb.from('mm_cafe_transfers').insert({status:'requested',items,note:($('reqNote')?.value||'').trim(),requested_by:user.name,requested_at:now});
+  if(error){if(b){b.disabled=false;b.textContent='📝 Send request';}return toast('Failed: '+error.message,'error');}
+  toast('Request sent to production ✓','success');renderInventory();
 }
 
 // ===================== KIOSK EXTRAS =====================
